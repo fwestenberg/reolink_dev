@@ -5,22 +5,27 @@ SETUP
 1. Clone this project into your config/custom_components directory
 2. In your configuration.yaml add the following lines:
 
+```text
 camera:
 - platform: reolink 
   name: Garden
   host: 192.168.1.20
   username: admin
   password: !secret reolink
+```
   
-3. For push notifications, login to your camera web UI. Navigate to the Device Settings, tab Network -> Advanced -> E-mail.
+3. For push notifications, login to your camera web UI. 
+Navigate to the Device Settings, tab Network -> Advanced -> E-mail.
 Add the following configuration here:
 
+```text
 SMTP Server: 192.168.1.100 --> Your Home Assistant IP
 SMTP Port: 1026 --> Can be changed to something else
 Sender Address: hass@hass.io --> Just something
 Receipient Address 1: garden@reolink.com --> This should match the camera device name in Home Assistant (before the @)
 Attachment: No Attachment
 Interval: 30 Seconds
+```
 
 Enable the checkbox under Schedule and press OK.
 
