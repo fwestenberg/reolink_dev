@@ -116,3 +116,8 @@ entities:
 title: Garden
 type: picture-glance
 ```
+
+Now you will have card like this (notice the buttons and motion icon):
+
+![alt text](https://github.com/fwestenberg/reolink/blob/master/Lovelace%20Card.png)
+
