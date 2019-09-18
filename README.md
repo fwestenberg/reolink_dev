@@ -1,4 +1,4 @@
-# reolink
+# Reolink IP camera
 Home Assistant Reolink addon
 
 __SETUP__
