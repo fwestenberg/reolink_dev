@@ -1,4 +1,4 @@
-# reolink
+# Reolink IP camera
 Home Assistant Reolink addon
 
 __SETUP__
@@ -8,7 +8,7 @@ __SETUP__
 ```text
 camera:
 - platform: reolink 
-  name: Garden
+  name: frontdoor
   host: 192.168.1.20
   username: admin
   password: !secret reolink
@@ -22,7 +22,7 @@ Add the following configuration here:
 SMTP Server: 192.168.1.100 --> Your Home Assistant IP
 SMTP Port: 1026 --> Can be changed to something else
 Sender Address: hass@hass.io --> Just something
-Receipient Address 1: garden@reolink.com --> This should match the camera device name in Home Assistant (before the @)
+Receipient Address 1: frontdoor@reolink.com --> This should match the camera device name in Home Assistant (before the @)
 Attachment: No Attachment
 Interval: 30 Seconds
 ```
@@ -34,11 +34,11 @@ Enable the checkbox under Schedule and press OK.
 ```text
 platform: template
 sensors:
-  motion_garden:
-    friendly_name: Camera garden
+  motion_frontdoor:
+    friendly_name: Camera frontdoor
     device_class: motion
-    entity_id: camera.garden
-    value_template: "{{ is_state('camera.garden', 'motion') }}"
+    entity_id: camera.frontdoor
+    value_template: "{{ is_state('camera.frontdoor', 'motion') }}"
     delay_off: 
         seconds: 30
 ```
@@ -47,52 +47,52 @@ sensors:
 ```text
 platform: template
 switches:
-  camera_garden_email:
-    value_template: "{{ is_state_attr('camera.garden', 'email_enabled', true) }}"
+  camera_frontdoor_email:
+    value_template: "{{ is_state_attr('camera.frontdoor', 'email_enabled', true) }}"
     turn_on:
       service: camera.enable_email
       data:
-        entity_id: camera.garden
+        entity_id: camera.frontdoor
     turn_off:
       service: camera.disable_email
       data:
-        entity_id: camera.garden
+        entity_id: camera.frontdoor
     icon_template: >-
-      {% if is_state_attr('camera.garden', 'email_enabled', true) %}
+      {% if is_state_attr('camera.frontdoor', 'email_enabled', true) %}
         mdi:bell
       {% else %}
         mdi:bell-off
       {% endif %}
         
-  camera_garden_ftp:
-    value_template: "{{ is_state_attr('camera.garden', 'ftp_enabled', true) }}"
+  camera_frontdoor_ftp:
+    value_template: "{{ is_state_attr('camera.frontdoor', 'ftp_enabled', true) }}"
     turn_on:
       service: camera.enable_ftp
       data:
-        entity_id: camera.garden
+        entity_id: camera.frontdoor
     turn_off:
       service: camera.disable_ftp
       data:
-        entity_id: camera.garden
+        entity_id: camera.frontdoor
     icon_template: >-
-      {% if is_state_attr('camera.garden', 'ftp_enabled', true) %}
+      {% if is_state_attr('camera.frontdoor', 'ftp_enabled', true) %}
         mdi:filmstrip
       {% else %}
         mdi:filmstrip-off
       {% endif %}
       
-  camera_garden_ir_lights:
-    value_template: "{{ is_state_attr('camera.garden', 'ir_lights_enabled', true) }}"
+  camera_frontdoor_ir_lights:
+    value_template: "{{ is_state_attr('camera.frontdoor', 'ir_lights_enabled', true) }}"
     turn_on:
       service: camera.enable_ir_lights
       data:
-        entity_id: camera.garden
+        entity_id: camera.frontdoor
     turn_off:
       service: camera.disable_ir_lights
       data:
-        entity_id: camera.garden
+        entity_id: camera.frontdoor
     icon_template: >-
-      {% if is_state_attr('camera.garden', 'ir_lights_enabled', true) %}
+      {% if is_state_attr('camera.frontdoor', 'ir_lights_enabled', true) %}
         mdi:flashlight
       {% else %}
         mdi:flashlight-off
@@ -107,13 +107,13 @@ __USAGE__
 In your Home Assistant Lovelace, add a new card with the following:
 
 ```text
-camera_image: camera.garden
+camera_image: camera.frontdoor
 entities:
-  - switch.camera_garden_ir_lights
-  - switch.camera_garden_email
-  - switch.camera_garden_ftp
-  - binary_sensor.motion_garden
-title: Garden
+  - switch.camera_frontdoor_ir_lights
+  - switch.camera_frontdoor_email
+  - switch.camera_frontdoor_ftp
+  - binary_sensor.motion_frontdoor
+title: frontdoor
 type: picture-glance
 ```
 
