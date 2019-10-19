@@ -10,7 +10,6 @@ from homeassistant.components.camera import Camera, PLATFORM_SCHEMA, SUPPORT_STR
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_USERNAME, CONF_PASSWORD, ATTR_ENTITY_ID, EVENT_HOMEASSISTANT_STOP
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.util.async_ import run_coroutine_threadsafe
 from homeassistant.util import Throttle
 from requests.auth import HTTPDigestAuth
 
@@ -270,7 +269,7 @@ class ReolinkCamera(Camera):
 
     def camera_image(self):
         """Return bytes of camera image."""
-        return run_coroutine_threadsafe(self.async_camera_image(), self._hass.loop).result()
+        return asyncio.run_coroutine_threadsafe(self.async_camera_image(), self._hass.loop).result()
 
     async def async_camera_image(self):
         """Return a still image response from the camera."""
