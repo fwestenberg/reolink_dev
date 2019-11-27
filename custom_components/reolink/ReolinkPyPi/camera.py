@@ -123,6 +123,10 @@ class ReolinkApi(object):
     def rtspport(self):
         return self._rtspport
 
+    @property
+    def last_motion(self):
+        return self._last_motion
+
     def login(self, username, password):
         body = [{"cmd": "Login", "action": 0, "param": {"User": {"userName": username, "password": password}}}]
         param = {"cmd": "Login", "token": "null"}
