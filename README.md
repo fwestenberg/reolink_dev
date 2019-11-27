@@ -85,7 +85,7 @@ switches:
       {% endif %}
 ```
 
-6. Now restart Home Assistant.
+5. Now restart Home Assistant.
 
 __USAGE__
 In your Home Assistant Lovelace, add a new card with the following:
