@@ -13,9 +13,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import Throttle
 from requests.auth import HTTPDigestAuth
 
-MIN_TIME_BETWEEN_UPDATES = datetime.timedelta(seconds=10)
-SCAN_INTERVAL = datetime.timedelta(seconds=30)
-
 _LOGGER = logging.getLogger(__name__)
 
 STATE_MOTION = "motion"
@@ -41,7 +38,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_HOST): cv.string,
         vol.Required(CONF_PASSWORD): cv.string,
         vol.Required(CONF_USERNAME): cv.string,
-        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string
     }
 )
 
@@ -127,6 +124,7 @@ class ReolinkCamera(Camera):
         self._stream = None 
         self._protocol = None
         self._reolink_session = Camera(self._host, self._username, self._password)
+        self._last_update = 0
         self._last_image = None
         self._last_motion = 0
         self._ftp = None
@@ -162,6 +160,9 @@ class ReolinkCamera(Camera):
 
         if self._last_motion:
             attrs["last_motion"] = self._last_motion
+        
+        if self._last_update:
+            attrs["last_update"] = self._last_update
 
         attrs["ftp_enabled"] = self._ftp_enabled
         attrs["email_enabled"] = self._email_enabled
@@ -191,7 +192,6 @@ class ReolinkCamera(Camera):
 
     async def connect(self):
         await self.get_camera_settings()
-        await self.start_smtp()
 
     async def stream_source(self):
         """Return the source of the stream."""
@@ -210,6 +210,16 @@ class ReolinkCamera(Camera):
                 self._rtmpport,
                 self._stream )
         return stream_source
+
+    async def get_motion_state(self):
+            motion_state = self._reolink_session.get_motion_state()
+
+            if (motion_state != None and
+                motion_state[0]["value"]["state"] == 1):
+                self._state = STATE_MOTION
+                self._last_motion = datetime.datetime.now()
+            else:
+                self._state = STATE_NO_MOTION
 
     async def get_camera_settings(self):
         self._ftp = self._reolink_session.get_ftp()
@@ -264,6 +274,8 @@ class ReolinkCamera(Camera):
 
         if not self._protocol:
             self._protocol = 'rtsp'
+
+        self._last_update = datetime.datetime.now()
 
         return True
 
@@ -351,84 +363,16 @@ class ReolinkCamera(Camera):
     @property
     def state(self):
         """Return the state of the sensor."""
-        # _LOGGER.info(str(datetime.datetime.now() - self._last_motion).total_seconds() >= 60)
-
-        if (self._last_motion == 0 or
-            (datetime.datetime.now() - self._last_motion).total_seconds() >= 60):
-            # Time elapsed, reset state
-            if (self._email_enabled != None and 
-                self._email_enabled == True):
-                self._state = STATE_NO_MOTION
-            else:
-                self._state = STATE_IDLE
-
         return self._state
 
-    # @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def update(self):
         """Update the data from the camera."""
-        self._hass.loop.create_task(self.get_camera_settings())
+        self._hass.loop.create_task(self.get_motion_state())
+
+        if (self._last_update == 0 or
+            (datetime.datetime.now() - self._last_update).total_seconds() >= 30):
+            self._hass.loop.create_task(self.get_camera_settings())
 
     def disconnect(self, event):
         _LOGGER.info("Disconnecting from Reolink camera")
         self._reolink_session.logout()
-
-        if self._emailHandler != None:
-            self._emailHandler.stop()
-
-    async def start_smtp(self):
-        # Test if the server can be setup 
-        if (self._email[0]["value"]["Email"]['addr1'] != "" and 
-            self._email[0]["value"]["Email"]['smtpPort'] != "" and
-            self._email[0]["value"]["Email"]['smtpServer'] != ""):
-
-        # Instantiate the SMTP server, if not already available
-            emailHandler = self._hass.data.get(DOMAIN + 'SMTPServer')
-
-            if emailHandler == None:
-                self._emailHandler = ReolinkEmailHandler(self._hass, self.smtp_server, self.smtp_port)
-                # Store the mailserver
-                self._hass.data[DOMAIN + 'SMTPServer'] = self._emailHandler
-
-
-class ReolinkEmailHandler():
-    def __init__(self, hass, server, port):
-        self._hass = hass
-        self._server = server
-        self._port = port
-        self._task = self._hass.async_create_task(self.start())
-       
-    async def start(self):
-        from aiosmtpd.controller import Controller
-
-        _LOGGER.info("Setting up mailserver " + self._server + ":" + str(self._port))
-        controller = Controller(self, hostname=self._server, port=self._port)
-        controller.start()
-
-    def stop(self):
-        if self._task != None:
-            _LOGGER.info("Stopping the Reolink email handler")
-            self._task.cancel()
-
-    async def handle_RCPT(self, server, session, envelope, address, rcpt_options):   
-        # Update the component state
-        component = self._hass.data.get(DOMAIN)
-
-        # Reolink camera message        
-        entity = component.get_entity('camera.' + address.split('@')[0])
-        if entity:
-            entity._last_motion = datetime.datetime.now()
-            self._hass.states.set(entity.entity_id, STATE_MOTION, entity.state_attributes)
-
-        # Add 250 OK and the receiver address to the response so the sender thinks the email is sent
-        envelope.rcpt_tos.append(address)
-        return '250 OK'
-
-    async def handle_DATA(self, server, session, envelope):
-    # Enable for debugging 
-        # _LOGGER.info('Message from %s' % envelope.mail_from)
-        # _LOGGER.info('Message for %s' % envelope.rcpt_tos)
-        # _LOGGER.info('Message data:\n')
-        # _LOGGER.info(envelope.content.decode('utf8', errors='replace'))
-        # _LOGGER.info('End of message')
-        return '250 Message accepted for delivery'

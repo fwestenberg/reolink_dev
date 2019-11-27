@@ -17,44 +17,24 @@ class APIHandler(object):
         :param password:
         :return:
         """
-        try:
-            body = [{"cmd": "Login", "action": 0, "param": {"User": {"userName": username, "password": password}}}]
-            param = {"cmd": "Login", "token": "null"}
-            
-            response = requests.post(self.url, data=json.dumps(body), params=param)     
+        body = [{"cmd": "Login", "action": 0, "param": {"User": {"userName": username, "password": password}}}]
+        param = {"cmd": "Login", "token": "null"}
+        
+        response = self.post(body, param)
 
-            if response is not None:
-                data = json.loads(response.text)[0]
-                code = data["code"]
-
-                if int(code) == 0:
-                    self.token = data["value"]["Token"]["name"]
-                    print("Login success")
-                    print(self.token)
-                else:
-                    print("Failed to login\nStatus Code:", response.status_code)
+        if response is not None:
+            if response[0]["code"] == 0:
+                self.token = response[0]["value"]["Token"]["name"]
             else:
-                print("Failed to login\nStatus Code:", response.status_code)
-        except Exception as e:
-            print("Error Login\n", e)
-            raise
+                print("Failed to login. No token available")
+        else:
+            print("Failed to login")
 
     def logout(self):
-        try:
-            body = [{"cmd":"Logout","action":0,"param":{}}]
-            param = {"cmd": "Logout", "token": self.token}
-            
-            response = requests.post(self.url, data=json.dumps(body), params=param)
+        body = [{"cmd":"Logout","action":0,"param":{}}]
+        param = {"cmd": "Logout", "token": self.token}
 
-            if response is not None:
-
-                data = json.loads(response.text)[0]
-                if int(data["code"]) != 0:
-                    print("Failed to logout\nStatus Code:", response.status_code)
-        except Exception as e:
-            print("Error Logout\n", e)
-            raise
-
+        self.post(body, param)
 
     ###########
     # SETTERS
@@ -77,7 +57,7 @@ class APIHandler(object):
         # Change the FTP enable setting
         body[0]["param"]["Ftp"]["schedule"]["enable"] = newValue
 
-        return self.call(body, {"cmd": "SetFtp", "token": self.token} )
+        return self.post(body, {"cmd": "SetFtp", "token": self.token} )
 
     def set_email(self, enabled):
 
@@ -97,7 +77,7 @@ class APIHandler(object):
         # Change the Email enable setting
         body[0]["param"]["Email"]["schedule"]["enable"] = newValue
 
-        return self.call(body, {"cmd": "SetEmail", "token": self.token} )
+        return self.post(body, {"cmd": "SetEmail", "token": self.token} )
 
     def set_ir_lights(self, enabled):
 
@@ -117,42 +97,55 @@ class APIHandler(object):
         # Change the Email enable setting
         body[0]["param"]["IrLights"]["state"] = newValue
 
-        return self.call(body, {"cmd": "SetIrLights", "token": self.token} )
+        return self.post(body, {"cmd": "SetIrLights", "token": self.token} )
 
     ###########
     # GETTERS
     ###########
     def get_net_ports(self):
-        return self.call([{"cmd": "GetNetPort", "action": 1, "param": {}}],
+        return self.post([{"cmd": "GetNetPort", "action": 1, "param": {}}],
                          {"token": self.token})
 
     def get_ftp(self):
-        return self.call([{"cmd": "GetFtp", "action": 0, "param": {}}], 
+        return self.post([{"cmd": "GetFtp", "action": 0, "param": {}}], 
                          {"token": self.token})
     
     def get_device_info(self):
-        return self.call([{"cmd":"GetDevInfo","action":0,"param":{}}], 
+        return self.post([{"cmd":"GetDevInfo","action":0,"param":{}}], 
                          {"token": self.token})
 
     def get_email(self):
-        return self.call([{"cmd":"GetEmail","action":1,"param":{}}], 
+        return self.post([{"cmd":"GetEmail","action":1,"param":{}}], 
                          {"token": self.token})
 
     def get_ir_lights(self):
-        return self.call([{"cmd":"GetIrLights","action":1,"param":{}}], 
-                         {"token": self.token})    
+        return self.post([{"cmd":"GetIrLights","action":1,"param":{}}], 
+                         {"token": self.token})
 
-    def call(self, body, param):
+    def get_motion_state(self):
+        return self.get("?cmd=GetMdState&token=" + self.token)
+
+    def post(self, body, param):
         try:
-            if self.token is None:
+            if (self.token is None and body[0]["cmd"] != "Login"):
                 raise ValueError("Login first")
-            
+
             response = requests.post(self.url, data=json.dumps(body), params=param)
             
             return json.loads(response.text)
         except Exception as e:
             print(body[0]["cmd"], e)
 
+    def get(self, param):
+        try:
+            if (self.token is None):
+                raise ValueError("Login first")
+            
+            response = requests.get(self.url, params=param)
+            
+            return json.loads(response.text)
+        except Exception as e:
+            print("Error: ", e)
 
 class Camera(APIHandler):
     def __init__(self, ip="", username="admin", password=""):
