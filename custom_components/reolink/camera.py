@@ -1,250 +1,309 @@
-"""
-Reolink Camera API
-"""
-import requests
-import datetime
-import json
+"""This component provides basic support for Reolink IP cameras."""
 import logging
+import asyncio
+import voluptuous as vol
+# import aiohttp
+import datetime
+
+from homeassistant.components.camera import Camera, PLATFORM_SCHEMA, SUPPORT_STREAM, ENTITY_IMAGE_URL
+from homeassistant.const import CONF_HOST, CONF_NAME, CONF_USERNAME, CONF_PASSWORD, ATTR_ENTITY_ID, EVENT_HOMEASSISTANT_STOP
+from homeassistant.helpers import config_validation as cv
+from haffmpeg.camera import CameraMjpeg
+from homeassistant.components.ffmpeg import DATA_FFMPEG
+from custom_components.reolink_dev.ReolinkPyPi.camera import ReolinkApi
 
 _LOGGER = logging.getLogger(__name__)
 
-class ReolinkApi(object):
-    def __init__(self, ip):
-        self._url = "http://" + ip + "/cgi-bin/api.cgi"
-        self._ip = ip
-        self._token = None
-        self._motion_state = False
+STATE_MOTION = "motion"
+STATE_NO_MOTION = "no_motion"
+STATE_IDLE = "idle"
+
+DEFAULT_NAME = "Reolink Camera"
+DOMAIN = "camera"
+SERVICE_ENABLE_FTP = 'enable_ftp'
+SERVICE_DISABLE_FTP = 'disable_ftp'
+SERVICE_ENABLE_EMAIL = 'enable_email'
+SERVICE_DISABLE_EMAIL = 'disable_email'
+SERVICE_ENABLE_IR_LIGHTS = 'enable_ir_lights'
+SERVICE_DISABLE_IR_LIGHTS = 'disable_ir_lights'
+# SERVICE_SET_STREAM_PROTOCOL = 'set_stream_protocol'
+# SERVICE_SET_STREAM_SOURCE = 'set_stream_source'
+DEFAULT_BRAND = 'Reolink'
+DOMAIN_DATA = 'reolink_devices'
+
+
+from homeassistant.helpers.aiohttp_client import (
+    async_aiohttp_proxy_stream,
+    async_aiohttp_proxy_web,
+    async_get_clientsession,
+)
+
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {
+        vol.Required(CONF_HOST): cv.string,
+        vol.Required(CONF_PASSWORD): cv.string,
+        vol.Required(CONF_USERNAME): cv.string,
+        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string
+    }
+)
+
+@asyncio.coroutine
+def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
+    """Set up a Reolink IP Camera."""
+    async_add_devices([ReolinkCamera(hass, config)], update_before_add=True)
+
+# Event enable FTP
+    def handler_enable_ftp(call):
+        component = hass.data.get(DOMAIN)
+        entity = component.get_entity(call.data.get(ATTR_ENTITY_ID))
+
+        if entity:
+            entity.enable_ftp_upload()
+    hass.services.async_register(DOMAIN, SERVICE_ENABLE_FTP, handler_enable_ftp)
+
+# Event disable FTP
+    def handler_disable_ftp(call):
+        component = hass.data.get(DOMAIN)
+        entity = component.get_entity(call.data.get(ATTR_ENTITY_ID))
+
+        if entity:
+            entity.disable_ftp_upload()
+
+    hass.services.async_register(DOMAIN, SERVICE_DISABLE_FTP, handler_disable_ftp)
+
+# Event enable email
+    def handler_enable_email(call):
+        component = hass.data.get(DOMAIN)
+        entity = component.get_entity(call.data.get(ATTR_ENTITY_ID))
+
+        if entity:
+            entity.enable_email()
+    hass.services.async_register(DOMAIN, SERVICE_ENABLE_EMAIL, handler_enable_email)
+
+# Event disable email
+    def handler_disable_email(call):
+        component = hass.data.get(DOMAIN)
+        entity = component.get_entity(call.data.get(ATTR_ENTITY_ID))
+
+        if entity:
+            entity.disable_email()
+
+    hass.services.async_register(DOMAIN, SERVICE_DISABLE_EMAIL, handler_disable_email)
+
+# Event enable ir lights
+    def handler_enable_ir_lights(call):
+        component = hass.data.get(DOMAIN)
+        entity = component.get_entity(call.data.get(ATTR_ENTITY_ID))
+
+        if entity:
+            entity.enable_ir_lights()
+    hass.services.async_register(DOMAIN, SERVICE_ENABLE_IR_LIGHTS, handler_enable_ir_lights)
+
+# Event disable ir lights
+    def handler_disable_ir_lights(call):
+        component = hass.data.get(DOMAIN)
+        entity = component.get_entity(call.data.get(ATTR_ENTITY_ID))
+
+        if entity:
+            entity.disable_ir_lights()
+
+    hass.services.async_register(DOMAIN, SERVICE_DISABLE_IR_LIGHTS, handler_disable_ir_lights)
+
+
+class ReolinkCamera(Camera):
+    """An implementation of a Reolink IP camera."""
+
+    def __init__(self, hass, config):
+        """Initialize a Reolink camera."""
+        super().__init__()
+        self._host = config.get(CONF_HOST)
+        self._username = config.get(CONF_USERNAME)
+        self._password = config.get(CONF_PASSWORD)
+        self._name = config.get(CONF_NAME)
+        self._reolinkSession = None
+        self._hass = hass
+        self._manager = self._hass.data[DATA_FFMPEG]
+
+        self._stream = None 
+        self._protocol = None
+        self._last_update = 0
+        self._last_image = None
         self._last_motion = 0
-        self._device_info = None
-        self._motion_state = None
         self._ftp_state = None
         self._email_state = None
         self._ir_state = None
-        self._rtspport = None
-        self._rtmpport = None
+        self._state = STATE_IDLE
 
-    def status(self):
-        if self._token is None:
-            return
+        if not self._stream:
+            self._stream = 'main'
 
-        body = [{"cmd":"GetDevInfo","action":1,"param":{}},
-        {"cmd": "GetNetPort", "action": 1, "param": {}},
-        {"cmd": "GetFtp", "action": 1, "param": {}}, 
-        {"cmd":"GetEmail","action":1,"param":{}}, 
-        {"cmd":"GetIrLights","action":1,"param":{}}]
+        if not self._protocol:
+            self._protocol = 'rtmp'
 
-        param = {"token": self._token}
-        response = self.send(body, param)
-
-        try:
-            json_data = json.loads(response.text)
-        except:
-            _LOGGER.error(f"Error translating response to json")
-            return
-
-        for data in json_data:
-            try:
-                if data["cmd"] == "GetDevInfo": 
-                    self._device_info = data
-
-                elif data["cmd"] == "GetNetPort":
-                    self._netport_settings = data
-                    self._rtspport = data["value"]["NetPort"]["rtspPort"]
-                    self._rtmpport = data["value"]["NetPort"]["rtmpPort"]
-
-                elif data["cmd"] == "GetFtp": 
-                    self._ftp_settings = data
-                    if (data["value"]["Ftp"]["schedule"]["enable"] == 1):
-                        self._ftp_state = True
-                    else:
-                        self._ftp_state = False
-
-                elif data["cmd"] == "GetEmail":
-                    self._email_settings = data
-                    if (data["value"]["Email"]["schedule"]["enable"] == 1):
-                        self._email_state = True
-                    else:
-                        self._email_state = False
-                        
-                elif data["cmd"] == "GetIrLights":
-                    self._ir_settings = data
-                    if (data["value"]["IrLights"]["state"] == "Auto"):
-                        self._ir_state = True
-                    else:
-                        self._ir_state = False
-            except:
-                continue    
+        self._reolinkSession = ReolinkApi(self._host)
+        self._reolinkSession.login(self._username, self._password)
+        self._hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, self.disconnect)
 
     @property
-    def motion_state(self):
-        response = self.send(None, "?cmd=GetMdState&token=" + self._token)
+    def state_attributes(self):
+        """Return the camera state attributes."""
+        attrs = {"access_token": self.access_tokens[-1]}
 
-        try:
-            json_data = json.loads(response.text)
+        if self._last_motion:
+            attrs["last_motion"] = self._last_motion
+        
+        if self._last_update:
+            attrs["last_update"] = self._last_update
 
-            if json_data is None:
-                _LOGGER.error(f"Unable to get Motion detection state at IP {self._ip}")
-                self._motion_state = False
-                return self._motion_state
+        attrs["ftp_enabled"] = self._ftp_state
+        attrs["email_enabled"] = self._email_state
+        attrs["ir_lights_enabled"] = self._ir_state
 
-            if json_data[0]["value"]["state"] == 1:
-                self._motion_state = True 
-                self._last_motion = datetime.datetime.now()
-            else:
-                self._motion_state = False
-        except:
-            self._motion_state = False
+        return attrs
 
-        return self._motion_state
-    
     @property
-    def still_image(self):
-        response = self.send(None, "?cmd=Snap&channel=0&token=" + self._token, stream=True)
-        response.raw.decode_content = True
-        return response.raw
+    def supported_features(self):
+        """Return supported features."""
+        return SUPPORT_STREAM
+
+    @property
+    def name(self):
+        """Return the name of this camera."""
+        return self._name
+
+    @property
+    def should_poll(self):
+        """Polling needed for the device status."""
+        return True
+
+    @property
+    def state(self):
+        """Return the state of the sensor."""
+        return self._state
 
     @property
     def ftp_state(self):
+        """Camera Motion recording Status."""
         return self._ftp_state
 
     @property
     def email_state(self):
+        """Camera email Status."""
         return self._email_state
 
-    @property
-    def ir_state(self):
-        return self._ir_state
-
-    @property
-    def rtmpport(self):
-        return self._rtmpport
-
-    @property
-    def rtspport(self):
-        return self._rtspport
-
-    @property
-    def last_motion(self):
-        return self._last_motion
-
-    def login(self, username, password):
-        body = [{"cmd": "Login", "action": 0, "param": {"User": {"userName": username, "password": password}}}]
-        param = {"cmd": "Login", "token": "null"}
-        
-        response = self.send(body, param)
-
-        try:
-            json_data = json.loads(response.text)
-        except:
-            _LOGGER.error(f"Error translating login response to json")
-            return
-
-        if json_data is not None:
-            if json_data[0]["code"] == 0:
-                self._token = json_data[0]["value"]["Token"]["name"]
-                _LOGGER.info(f"Reolink camera logged in at IP {self._ip}")
-            else:
-                _LOGGER.error(f"Failed to login at IP {self._ip}. No token available")
+    async def stream_source(self):
+        """Return the source of the stream."""
+        if self._protocol == 'rtsp':
+            stream_source = "rtsp://{}:{}@{}:{}/h264Preview_01_{}".format(
+                self._username,
+                self._password,
+                self._host,
+                self._reolinkSession.rtspPort,
+                self._stream )
         else:
-            _LOGGER.error(f"Failed to login at IP {self._ip}. Connection error.")
+            stream_source = "rtmp://{}:{}/bcs/channel0_{}.bcs?channel=0&stream=0&user={}&password={}".format(
+                self._host,
+                self._reolinkSession.rtmpport,
+                self._stream,
+                self._username,
+                self._password )
 
-    def logout(self):
-        body = [{"cmd":"Logout","action":0,"param":{}}]
-        param = {"cmd": "Logout", "token": self._token}
+        return stream_source
 
-        self.send(body, param)
+    async def handle_async_mjpeg_stream(self, request):
+        """Generate an HTTP MJPEG stream from the camera."""
+        stream_source = "rtmp://{}:{}/bcs/channel0_{}.bcs?channel=0&stream=0&user={}&password={}".format(
+            self._host,
+            self._reolinkSession.rtmpport,
+            self._stream,
+            self._username,
+            self._password )
 
-    def set_ftp(self, enabled):
-        self.status()
+        stream = CameraMjpeg(self._manager.binary, loop=self._hass.loop)
+        await stream.open_camera(stream_source)
 
-        if not self._ftp_settings:
-            _LOGGER.error("Error while fetching current FTP settings")
-            return
+        try:
+            stream_reader = await stream.get_reader()
+            return await async_aiohttp_proxy_stream(
+                self._hass,
+                request,
+                stream_reader,
+                self._manager.ffmpeg_stream_content_type,
+            )
+        finally:
+            await stream.close()
 
-        if enabled == True:
-            newValue = 1
+    def camera_image(self):
+        """Return bytes of camera image."""
+        return asyncio.run_coroutine_threadsafe(self.async_camera_image(), self._hass.loop).result()
+
+    async def async_camera_image(self):
+        """Return a still image response from the camera."""
+        return self._reolinkSession.still_image
+
+    def enable_ftp_upload(self):
+        """Enable motion recording in camera."""
+        if self._reolinkSession.set_ftp(True):
+            self._ftp_state = True
+            self._hass.states.set(self.entity_id, self.state, self.state_attributes)
+
+    def disable_ftp_upload(self):
+        """Disable motion recording."""
+        if self._reolinkSession.set_ftp(False):
+            self._ftp_state = False
+            self._hass.states.set(self.entity_id, self.state, self.state_attributes)
+
+    def enable_email(self):
+        """Enable email motion detection in camera."""
+        if self._reolinkSession.set_email(True):
+            self._email_state = True
+            self._hass.states.set(self.entity_id, self.state, self.state_attributes)
+
+    def disable_email(self):
+        """Disable email motion detection."""
+        if self._reolinkSession.set_email(False):
+            self._email_state = False
+            self._hass.states.set(self.entity_id, self.state, self.state_attributes)
+
+    def enable_ir_lights(self):
+        """Enable IR lights."""
+        if self._reolinkSession.set_ir_lights(True):
+            self._ir_state = True
+            self._hass.states.set(self.entity_id, self.state, self.state_attributes)
+
+    def disable_ir_lights(self):
+        """Disable IR lights."""
+        if self._reolinkSession.set_ir_lights(False):
+            self._ir_state = False
+            self._hass.states.set(self.entity_id, self.state, self.state_attributes)   
+
+    async def update_motion_state(self):
+        if self._reolinkSession.motion_state == True:
+            self._state = STATE_MOTION
+            self._last_motion = self._reolinkSession.last_motion
         else:
-            newValue = 0
+            self._state = STATE_NO_MOTION
+    
+    async def update_status(self):
+        self._reolinkSession.status()
 
-        body = [{"cmd":"SetFtp","action":0,"param": self._ftp_settings["value"] }]
-        body[0]["param"]["Ftp"]["schedule"]["enable"] = newValue
+        self._last_update = datetime.datetime.now()
+        self._ftp_state = self._reolinkSession.ftp_state
+        self._email_state = self._reolinkSession.email_state
+        self._ir_state = self._reolinkSession.ir_state
 
-        response = self.send(body, {"cmd": "SetFtp", "token": self._token} )
+    def update(self):
+        """Update the data from the camera."""
         try:
-            json_data = json.loads(response.text)
-            if json_data[0]["value"]["rspCode"] == 200:
-                return True
-            else:
-                return False
-        except:
-            _LOGGER.error(f"Error translating FTP response to json")
-            return False
+            self._hass.loop.create_task(self.update_motion_state())
 
-    def set_email(self, enabled):
-        self.status()
+            if (self._last_update == 0 or
+               (datetime.datetime.now() - self._last_update).total_seconds() >= 30):
+                self._hass.loop.create_task(self.update_status())
 
-        if not self._email_settings:
-            _LOGGER.error("Error while fetching current email settings")
-            return
+        except Exception as ex:
+            _LOGGER.error("Got exception while fetching the state: %s", ex)
 
-        if enabled == True:
-            newValue = 1
-        else:
-            newValue = 0
-
-        body = [{"cmd":"SetEmail","action":0,"param": self._email_settings["value"] }]
-        body[0]["param"]["Email"]["schedule"]["enable"] = newValue
-
-        response = self.send(body, {"cmd": "SetEmail", "token": self._token} )
-        try:
-            json_data = json.loads(response.text)
-            if json_data[0]["value"]["rspCode"] == 200:
-                return True
-            else:
-                return False
-        except:
-            _LOGGER.error(f"Error translating Email response to json")
-            return False
-
-    def set_ir_lights(self, enabled):
-        self.status()
-
-        if not self._ir_settings:
-            _LOGGER.error("Error while fetching current IR light settings")
-            return
-
-        if enabled == True:
-            newValue = "Auto"
-        else:
-            newValue = "Off"
-
-        body = [{"cmd":"SetIrLights","action":0,"param": self._ir_settings["value"] }]
-        body[0]["param"]["IrLights"]["state"] = newValue
-
-        response = self.send(body, {"cmd": "SetIrLights", "token": self._token} )
-        try:
-            json_data = json.loads(response.text)
-            if json_data[0]["value"]["rspCode"] == 200:
-                return True
-            else:
-                return False
-        except:
-            _LOGGER.error(f"Error translating IR Lights response to json")
-            return False
-
-    def send(self, body, param, stream=False):
-        try:
-            if (self._token is None and 
-                (body is None or body[0]["cmd"] != "Login")):
-                _LOGGER.info(f"Reolink camera at IP {self._ip} is not logged in")
-                return                
-
-            if body is None:
-                response = requests.get(self._url, params=param, stream=stream)
-            else:
-                response = requests.post(self._url, data=json.dumps(body), params=param)
-            
-            return response
-        except Exception:
-            _LOGGER.error(f"Exception while calling Reolink camera API at ip {self._ip}")
-            return None
+    def disconnect(self, event):
+        _LOGGER.info("Disconnecting from Reolink camera")
+        self._reolinkSession.logout()
