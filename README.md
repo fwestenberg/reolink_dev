@@ -12,24 +12,10 @@ camera:
   host: 192.168.1.20
   username: admin
   password: !secret reolink
+  scan_interval: 5
 ```
   
-3. For push notifications, login to your camera web UI. 
-Navigate to the Device Settings, tab Network -> Advanced -> E-mail.
-Add the following configuration here:
-
-```text
-SMTP Server: 192.168.1.100 --> Your Home Assistant IP
-SMTP Port: 1026 --> Can be changed to something else
-Sender Address: hass@hass.io --> Just something
-Receipient Address 1: frontdoor@reolink.com --> This should match the camera device name in Home Assistant (before the @)
-Attachment: No Attachment
-Interval: 30 Seconds
-```
-
-Enable the checkbox under Schedule and press OK.
-
-4. Of course you want to have a binary sensor for the motion detection now, so add this to your binary_sensors.yaml:
+3. Of course you want to have a binary sensor for the motion detection now, so add this to your binary_sensors.yaml:
 
 ```text
 platform: template
@@ -43,7 +29,7 @@ sensors:
         seconds: 30
 ```
 
-5. Next you can create those fancy buttons:
+4. Next you can create those fancy buttons:
 ```text
 platform: template
 switches:
@@ -59,9 +45,9 @@ switches:
         entity_id: camera.frontdoor
     icon_template: >-
       {% if is_state_attr('camera.frontdoor', 'email_enabled', true) %}
-        mdi:bell
+        mdi:email
       {% else %}
-        mdi:bell-off
+        mdi:email-outline
       {% endif %}
         
   camera_frontdoor_ftp:
@@ -99,9 +85,7 @@ switches:
       {% endif %}
 ```
 
-6. Now restart Home Assistant, the local SMTP server should be setup (see HA's logfile). When Home Assistant is fully started, hit the E-Mail Test button in the camera's UI. Home assistant should detect motion! But... there is one limitation (tested on my RLC-420 and RLC-430. The Test button immediately sends the email to HA. But the motion detection to email takes about 25 seconds. I already had contact about this with the Reolink support desk, but this seems to be normal behaviour:
-
-_"I have confirmed with our senior engineers that it's normal. When you test email, it's just your sender address to send an email to the recipient address, which is very quick. When the camera detects a movement, it'll pre-record, write video to the SD card, send email and all the other settings. So it'll deal with a lot of things at the same time. Then it won't communicate to your email server that quick to send an email notification."_
+6. Now restart Home Assistant.
 
 __USAGE__
 In your Home Assistant Lovelace, add a new card with the following:
