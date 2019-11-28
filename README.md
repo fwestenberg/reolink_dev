@@ -8,14 +8,14 @@ __SETUP__
 ```text
 camera:
 - platform: reolink_dev
-  name: frontdoor
-  host: 192.168.1.20
+  name: camera
+  host: IP_ADDRESS
   username: admin
-  password: !secret reolink
+  password: YOUR_PASSWORD
   scan_interval: 5
 ```
   
-3. Of course you want to have a binary sensor for the motion detection now, so add this to your binary_sensors.yaml:
+3. Create a binary sensor for the motion detection, add this to your binary_sensors.yaml:
 
 ```text
 platform: template
@@ -29,7 +29,7 @@ sensors:
         seconds: 30
 ```
 
-4. Next you can create those fancy buttons:
+4. Create email, FTP upload and infrared light buttons:
 ```text
 platform: template
 switches:
@@ -103,5 +103,5 @@ type: picture-glance
 
 Now you will have card like this (notice the buttons and motion icon):
 
-![alt text](https://github.com/fwestenberg/reolink/blob/master/Lovelace%20Card.png)
+![alt text](https://github.com/fwestenberg/reolink/blob/master/Lovelace%20Card.PNG)
 
