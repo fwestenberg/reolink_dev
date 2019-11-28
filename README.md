@@ -7,7 +7,7 @@ __SETUP__
 
 ```text
 camera:
-- platform: reolink 
+- platform: reolink_dev
   name: frontdoor
   host: 192.168.1.20
   username: admin
