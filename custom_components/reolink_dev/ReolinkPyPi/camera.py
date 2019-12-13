@@ -22,6 +22,7 @@ class ReolinkApi(object):
         self._ir_state = None
         self._rtspport = None
         self._rtmpport = None
+        self._ptzpresets = dict()
 
     def status(self):
         if self._token is None:
@@ -31,7 +32,8 @@ class ReolinkApi(object):
         {"cmd": "GetNetPort", "action": 1, "param": {}},
         {"cmd": "GetFtp", "action": 1, "param": {}}, 
         {"cmd":"GetEmail","action":1,"param":{}}, 
-        {"cmd":"GetIrLights","action":1,"param":{}}]
+        {"cmd":"GetIrLights","action":1,"param":{}},
+        {"cmd":"GetPtzPreset","action":1,"param":{"channel":0}}]
 
         param = {"token": self._token}
         response = self.send(body, param)
@@ -72,6 +74,17 @@ class ReolinkApi(object):
                         self._ir_state = True
                     else:
                         self._ir_state = False
+
+                elif data["cmd"] == "GetPtzPreset":
+                    self._ptzpresets_settings = data
+                    for preset in data["value"]["PtzPreset"]:
+                        if int(preset["enable"]) == 1:
+                            preset_name = preset["name"]
+                            preset_id = int(preset["id"])
+                            self._ptzpresets[preset_name] = preset_id
+                            _LOGGER.debug(f"Got preset {preset_name} with ID {preset_id}")
+                        else:
+                            _LOGGER.debug(f"Preset is not enabled: {preset}")
             except:
                 continue    
 
@@ -126,6 +139,10 @@ class ReolinkApi(object):
     @property
     def last_motion(self):
         return self._last_motion
+
+    @property
+    def ptzpresets(self):
+        return self._ptzpresets
 
     def login(self, username, password):
         body = [{"cmd": "Login", "action": 0, "param": {"User": {"userName": username, "password": password}}}]
