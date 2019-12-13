@@ -132,6 +132,7 @@ class ReolinkCamera(Camera):
         self._ftp_state = None
         self._email_state = None
         self._ir_state = None
+        self._ptzpresets = dict()
         self._state = STATE_IDLE
 
         if not self._stream:
@@ -158,6 +159,7 @@ class ReolinkCamera(Camera):
         attrs["ftp_enabled"] = self._ftp_state
         attrs["email_enabled"] = self._email_state
         attrs["ir_lights_enabled"] = self._ir_state
+        attrs["ptzpresets"] = self._ptzpresets
 
         return attrs
 
@@ -191,6 +193,11 @@ class ReolinkCamera(Camera):
         """Camera email Status."""
         return self._email_state
 
+    @property
+    def ptzpresets(self):
+        """Camera PTZ presets list."""
+        return self._ptzpresets
+
     async def stream_source(self):
         """Return the source of the stream."""
         if self._protocol == 'rtsp':
@@ -198,7 +205,7 @@ class ReolinkCamera(Camera):
                 self._username,
                 self._password,
                 self._host,
-                self._reolinkSession.rtspPort,
+                self._reolinkSession.rtspport,
                 self._stream )
         else:
             stream_source = "rtmp://{}:{}/bcs/channel0_{}.bcs?channel=0&stream=0&user={}&password={}".format(
@@ -291,6 +298,7 @@ class ReolinkCamera(Camera):
         self._ftp_state = self._reolinkSession.ftp_state
         self._email_state = self._reolinkSession.email_state
         self._ir_state = self._reolinkSession.ir_state
+        self._ptzpresets = self._reolinkSession.ptzpresets
 
     def update(self):
         """Update the data from the camera."""
