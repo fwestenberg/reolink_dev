@@ -117,6 +117,11 @@ class ReolinkApi(object):
         return response.raw
 
     @property
+    def snapshot(self):
+        response = self.send(None, "?cmd=Snap&channel=0&token=" + self._token, stream=False)
+        return response.content
+
+    @property
     def ftp_state(self):
         return self._ftp_state
 
@@ -265,3 +270,4 @@ class ReolinkApi(object):
         except Exception:
             _LOGGER.error(f"Exception while calling Reolink camera API at ip {self._ip}")
             return None
+
