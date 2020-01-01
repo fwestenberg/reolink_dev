@@ -2,7 +2,6 @@
 import logging
 import asyncio
 import voluptuous as vol
-# import aiohttp
 import datetime
 
 from homeassistant.components.camera import Camera, PLATFORM_SCHEMA, SUPPORT_STREAM, ENTITY_IMAGE_URL
@@ -10,6 +9,7 @@ from homeassistant.const import CONF_HOST, CONF_NAME, CONF_USERNAME, CONF_PASSWO
 from homeassistant.helpers import config_validation as cv
 from haffmpeg.camera import CameraMjpeg
 from homeassistant.components.ffmpeg import DATA_FFMPEG
+from homeassistant.helpers.aiohttp_client import async_aiohttp_proxy_stream
 from custom_components.reolink_dev.ReolinkPyPi.camera import ReolinkApi
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,12 +31,6 @@ SERVICE_DISABLE_IR_LIGHTS = 'disable_ir_lights'
 DEFAULT_BRAND = 'Reolink'
 DOMAIN_DATA = 'reolink_devices'
 
-
-from homeassistant.helpers.aiohttp_client import (
-    async_aiohttp_proxy_stream,
-    async_aiohttp_proxy_web,
-    async_get_clientsession,
-)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -115,6 +109,7 @@ class ReolinkCamera(Camera):
 
     def __init__(self, hass, config):
         """Initialize a Reolink camera."""
+
         super().__init__()
         self._host = config.get(CONF_HOST)
         self._username = config.get(CONF_USERNAME)
@@ -124,8 +119,8 @@ class ReolinkCamera(Camera):
         self._hass = hass
         self._manager = self._hass.data[DATA_FFMPEG]
 
-        self._stream = None 
-        self._protocol = None
+        self._stream = "main" 
+        self._protocol = "rtmp"
         self._last_update = 0
         self._last_image = None
         self._last_motion = 0
@@ -135,11 +130,11 @@ class ReolinkCamera(Camera):
         self._ptzpresets = dict()
         self._state = STATE_IDLE
 
-        if not self._stream:
-            self._stream = 'main'
+        # if not self._stream:
+        #     self._stream = 'main'
 
-        if not self._protocol:
-            self._protocol = 'rtmp'
+        # if not self._protocol:
+        #     self._protocol = 'rtsp'
 
         self._reolinkSession = ReolinkApi(self._host)
         self._reolinkSession.login(self._username, self._password)
@@ -198,33 +193,9 @@ class ReolinkCamera(Camera):
         """Camera PTZ presets list."""
         return self._ptzpresets
 
-    async def stream_source(self):
-        """Return the source of the stream."""
-        if self._protocol == 'rtsp':
-            stream_source = "rtsp://{}:{}@{}:{}/h264Preview_01_{}".format(
-                self._username,
-                self._password,
-                self._host,
-                self._reolinkSession.rtspport,
-                self._stream )
-        else:
-            stream_source = "rtmp://{}:{}/bcs/channel0_{}.bcs?channel=0&stream=0&user={}&password={}".format(
-                self._host,
-                self._reolinkSession.rtmpport,
-                self._stream,
-                self._username,
-                self._password )
-
-        return stream_source
-
     async def handle_async_mjpeg_stream(self, request):
         """Generate an HTTP MJPEG stream from the camera."""
-        stream_source = "rtmp://{}:{}/bcs/channel0_{}.bcs?channel=0&stream=0&user={}&password={}".format(
-            self._host,
-            self._reolinkSession.rtmpport,
-            self._stream,
-            self._username,
-            self._password )
+        stream_source = f"rtmp://{self._host}:{self._reolinkSession.rtmpport}/bcs/channel0_{self._stream}.bcs?channel=0&stream=0&user={self._username}&password={self._password}"
 
         stream = CameraMjpeg(self._manager.binary, loop=self._hass.loop)
         await stream.open_camera(stream_source)
@@ -242,11 +213,11 @@ class ReolinkCamera(Camera):
 
     def camera_image(self):
         """Return bytes of camera image."""
-        return asyncio.run_coroutine_threadsafe(self.async_camera_image(), self._hass.loop).result()
+        return self._reolinkSession.still_image
 
     async def async_camera_image(self):
         """Return a still image response from the camera."""
-        return self._reolinkSession.still_image
+        return self._reolinkSession.snapshot
 
     def enable_ftp_upload(self):
         """Enable motion recording in camera."""
@@ -315,3 +286,4 @@ class ReolinkCamera(Camera):
     def disconnect(self, event):
         _LOGGER.info("Disconnecting from Reolink camera")
         self._reolinkSession.logout()
+
