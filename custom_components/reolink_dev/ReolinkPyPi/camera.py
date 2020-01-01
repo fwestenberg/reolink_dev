@@ -245,7 +245,7 @@ class ReolinkApi(object):
                 return True
             else:
                 return False
-        except:
+        except requests.exceptions.RequestException:
             _LOGGER.error(f"Error translating IR Lights response to json")
             return False
 
