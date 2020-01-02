@@ -9,9 +9,10 @@ import logging
 _LOGGER = logging.getLogger(__name__)
 
 class ReolinkApi(object):
-    def __init__(self, ip):
+    def __init__(self, ip, channel):
         self._url = "http://" + ip + "/cgi-bin/api.cgi"
         self._ip = ip
+        self._channel = channel
         self._token = None
         self._motion_state = False
         self._last_motion = 0
@@ -28,12 +29,13 @@ class ReolinkApi(object):
         if self._token is None:
             return
 
-        body = [{"cmd":"GetDevInfo","action":1,"param":{}},
-        {"cmd": "GetNetPort", "action": 1, "param": {}},
-        {"cmd": "GetFtp", "action": 1, "param": {}}, 
-        {"cmd":"GetEmail","action":1,"param":{}}, 
-        {"cmd":"GetIrLights","action":1,"param":{}},
-        {"cmd":"GetPtzPreset","action":1,"param":{"channel":0}}]
+        param_channel = {"channel": self._channel}
+        body = [{"cmd": "GetDevInfo", "action":1, "param": param_channel},
+            {"cmd": "GetNetPort", "action": 1, "param": param_channel},
+            {"cmd": "GetFtp", "action": 1, "param": param_channel},
+            {"cmd": "GetEmail", "action": 1, "param": param_channel},
+            {"cmd": "GetIrLights", "action": 1, "param": param_channel},
+            {"cmd": "GetPtzPreset", "action": 1, "param": param_channel}]
 
         param = {"token": self._token}
         response = self.send(body, param)
@@ -90,7 +92,10 @@ class ReolinkApi(object):
 
     @property
     def motion_state(self):
-        response = self.send(None, "?cmd=GetMdState&token=" + self._token)
+        body = [{"cmd": "GetMdState", "action": 0, "param":{"channel":self._channel}}]
+        param = {"token": self._token}
+        
+        response = self.send(body, param)
 
         try:
             json_data = json.loads(response.text)
@@ -112,13 +117,13 @@ class ReolinkApi(object):
     
     @property
     def still_image(self):
-        response = self.send(None, "?cmd=Snap&channel=0&token=" + self._token, stream=True)
+        response = self.send(None, f"?cmd=Snap&channel={self._channel}&token={self._token}", stream=True)
         response.raw.decode_content = True
         return response.raw
 
     @property
     def snapshot(self):
-        response = self.send(None, "?cmd=Snap&channel=0&token=" + self._token, stream=False)
+        response = self.send(None, f"?cmd=Snap&channel={self._channel}&token={self._token}", stream=False)
         return response.content
 
     @property
