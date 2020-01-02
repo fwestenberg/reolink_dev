@@ -22,8 +22,10 @@ STATE_IDLE = "idle"
 DEFAULT_NAME = "Reolink Camera"
 DEFAULT_STREAM = "main"
 DEFAULT_PROTOCOL = "rtmp"
+DEFAULT_CHANNEL = 0
 CONF_STREAM = "stream"
 CONF_PROTOCOL = "protocol"
+CONF_CHANNEL = "channel"
 DOMAIN = "camera"
 SERVICE_ENABLE_FTP = 'enable_ftp'
 SERVICE_DISABLE_FTP = 'disable_ftp'
@@ -44,6 +46,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_STREAM, default=DEFAULT_STREAM): vol.In(["main", "sub"]),
         vol.Optional(CONF_PROTOCOL, default=DEFAULT_PROTOCOL): vol.In(["rtmp", "rtsp"]),
+        vol.Optional(CONF_CHANNEL, default=DEFAULT_CHANNEL): cv.positive_int,
     }
 )
 
@@ -56,12 +59,13 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
     password = config.get(CONF_PASSWORD)
     stream = config.get(CONF_STREAM)
     protocol = config.get(CONF_PROTOCOL)
+    channel = config.get(CONF_CHANNEL)
     name = config.get(CONF_NAME)
 
-    session = ReolinkApi(host)
+    session = ReolinkApi(host, channel)
     session.login(username, password)
 
-    async_add_devices([ReolinkCamera(hass, session, host, username, password, stream, protocol, name)], update_before_add=True)
+    async_add_devices([ReolinkCamera(hass, session, host, username, password, stream, protocol, channel, name)], update_before_add=True)
 
 # Event enable FTP
     def handler_enable_ftp(call):
@@ -124,7 +128,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
 class ReolinkCamera(Camera):
     """An implementation of a Reolink IP camera."""
 
-    def __init__(self, hass, session, host, username, password, stream, protocol, name):
+    def __init__(self, hass, session, host, username, password, stream, protocol, channel, name):
         """Initialize a Reolink camera."""
 
         super().__init__()
@@ -133,6 +137,7 @@ class ReolinkCamera(Camera):
         self._password = password
         self._stream = stream
         self._protocol = protocol
+        self._channel = channel
         self._name = name
         self._reolinkSession = session
         self._hass = hass
@@ -205,9 +210,10 @@ class ReolinkCamera(Camera):
     async def stream_source(self):
         """Return the source of the stream."""
         if self._protocol == "rtsp":
-            stream_source = f"rtsp://{self._username}:{self._password}@{self._host}:{self._reolinkSession.rtspport}/h264Preview_01_{self._stream}"
+            rtspChannel = f"{self._channel+1:02d}"
+            stream_source = f"rtsp://{self._username}:{self._password}@{self._host}:{self._reolinkSession.rtspport}/h264Preview_{rtspChannel}_{self._stream}"
         else:
-            stream_source = f"rtmp://{self._host}:{self._reolinkSession.rtmpport}/bcs/channel0_{self._stream}.bcs?channel=0&stream=0&user={self._username}&password={self._password}"
+            stream_source = f"rtmp://{self._host}:{self._reolinkSession.rtmpport}/bcs/channel{self._channel}_{self._stream}.bcs?channel={self._channel}&stream=0&user={self._username}&password={self._password}"
 
         return stream_source
 
@@ -238,13 +244,13 @@ class ReolinkCamera(Camera):
         return self._reolinkSession.snapshot
 
     def enable_ftp_upload(self):
-        """Enable motion recording in camera."""
+        """Enable motion ftp recording in camera."""
         if self._reolinkSession.set_ftp(True):
             self._ftp_state = True
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
 
     def disable_ftp_upload(self):
-        """Disable motion recording."""
+        """Disable motion ftp recording."""
         if self._reolinkSession.set_ftp(False):
             self._ftp_state = False
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
