@@ -8,11 +8,13 @@ __SETUP__
 ```text
 camera:
 - platform: reolink_dev
-  name: camera
   host: IP_ADDRESS
   username: admin
   password: YOUR_PASSWORD
-  scan_interval: 5
+  name: camera (optional, default Reolink Camera)
+  stream: main or sub (optional, default main)
+  protocol: rtmp or rtsp (optional, default rtmp)
+  scan_interval: 5 (optional, default 30s)
 ```
   
 3. Create a binary sensor for the motion detection, add this to your binary_sensors.yaml:
