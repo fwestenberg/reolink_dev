@@ -14,6 +14,7 @@ camera:
   name: camera (optional, default Reolink Camera)
   stream: main or sub (optional, default main)
   protocol: rtmp or rtsp (optional, default rtmp)
+  channel: NVR camera channel (optional, default 0)
   scan_interval: 5 (optional, default 30s)
 ```
   
