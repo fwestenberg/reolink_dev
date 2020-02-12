@@ -297,6 +297,17 @@ class ReolinkCamera(Camera):
 
     def update(self):
         """Update the data from the camera."""
+        if not self._reolinkSession.session_active():
+            if (self._last_update == 0 or
+               (datetime.datetime.now() - self._last_update).total_seconds() >= 60):
+                self._reolinkSession.login(self._username, self._password)
+            else:
+                return
+        
+        if not self._reolinkSession.session_active():
+            _LOGGER.error(f"Failed to reconnect with Reolink at IP {self._host}. Retrying in 60 seconds.")
+            self._last_update = datetime.datetime.now()
+
         try:
             self._hass.loop.create_task(self.update_motion_state())
 
@@ -305,7 +316,7 @@ class ReolinkCamera(Camera):
                 self._hass.loop.create_task(self.update_status())
 
         except Exception as ex:
-            _LOGGER.error("Got exception while fetching the state: %s", ex)
+            _LOGGER.error(f"Got exception while fetching the state: {ex}")
 
     def disconnect(self, event):
         _LOGGER.info("Disconnecting from Reolink camera")

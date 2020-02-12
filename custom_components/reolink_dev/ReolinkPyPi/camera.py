@@ -25,6 +25,9 @@ class ReolinkApi(object):
         self._rtmpport = None
         self._ptzpresets = dict()
 
+    def session_active(self):
+        return self._token is not None
+
     def status(self):
         if self._token is None:
             return
@@ -44,6 +47,7 @@ class ReolinkApi(object):
             json_data = json.loads(response.text)
         except:
             _LOGGER.error(f"Error translating response to json")
+            self._token = None
             return
 
         for data in json_data:
@@ -118,12 +122,18 @@ class ReolinkApi(object):
     @property
     def still_image(self):
         response = self.send(None, f"?cmd=Snap&channel={self._channel}&token={self._token}", stream=True)
+        if response is None:
+            return
+
         response.raw.decode_content = True
         return response.raw
 
     @property
     def snapshot(self):
         response = self.send(None, f"?cmd=Snap&channel={self._channel}&token={self._token}", stream=False)
+        if response is None:
+            return
+
         return response.content
 
     @property
@@ -267,12 +277,11 @@ class ReolinkApi(object):
                 return                
 
             if body is None:
-                response = requests.get(self._url, params=param, stream=stream)
+                response = requests.get(self._url, params=param, stream=stream, timeout=10)
             else:
-                response = requests.post(self._url, data=json.dumps(body), params=param)
+                response = requests.post(self._url, data=json.dumps(body), params=param, timeout=10)
             
             return response
-        except Exception:
+        except requests.exceptions.RequestException: 
             _LOGGER.error(f"Exception while calling Reolink camera API at ip {self._ip}")
             return None
-
