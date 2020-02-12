@@ -1,6 +1,15 @@
 # Reolink IP camera
 Home Assistant Reolink addon
 
+
+__Unsupported models__
+- B800
+- B400
+- D400
+- E1
+- E1 Pro
+
+
 __SETUP__
 1. Clone this project into your config/custom_components directory
 2. In your configuration.yaml add the following lines:
