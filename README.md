@@ -8,6 +8,7 @@ __Unsupported models__
 - D400
 - E1
 - E1 Pro
+- Battery-powered camera's
 
 
 __SETUP__
