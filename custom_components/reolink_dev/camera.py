@@ -287,7 +287,7 @@ class ReolinkCamera(Camera):
             self._state = STATE_NO_MOTION
     
     async def update_status(self):
-        self._reolinkSession.status()
+        await self.hass.async_add_executor_job(self._reolinkSession.status())
 
         self._last_update = datetime.datetime.now()
         self._ftp_state = self._reolinkSession.ftp_state
