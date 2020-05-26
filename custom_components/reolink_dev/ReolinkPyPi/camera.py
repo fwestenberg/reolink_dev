@@ -22,6 +22,7 @@ class ReolinkApi(object):
         self._ftp_state = None
         self._email_state = None
         self._ir_state = None
+        self._recording_state = None
         self._rtspport = None
         self._rtmpport = None
         self._ptzpresets = dict()
@@ -39,6 +40,7 @@ class ReolinkApi(object):
             {"cmd": "GetFtp", "action": 1, "param": param_channel},
             {"cmd": "GetEmail", "action": 1, "param": param_channel},
             {"cmd": "GetIrLights", "action": 1, "param": param_channel},
+            {"cmd": "GetRec", "action": 1, "param": param_channel},
             {"cmd": "GetPtzPreset", "action": 1, "param": param_channel}]
 
         param = {"token": self._token}
@@ -81,6 +83,13 @@ class ReolinkApi(object):
                         self._ir_state = True
                     else:
                         self._ir_state = False
+
+                elif data["cmd"] == "GetRec":
+                    self._recording_settings = data
+                    if (data["value"]["Rec"]["schedule"]["enable"] == 1):
+                        self._recording_state = True
+                    else:
+                        self._recording_state = False
 
                 elif data["cmd"] == "GetPtzPreset":
                     self._ptzpresets_settings = data
@@ -151,6 +160,10 @@ class ReolinkApi(object):
     @property
     def ir_state(self):
         return self._ir_state
+
+    @property
+    def recording_state(self):
+        return self._recording_state
 
     @property
     def rtmpport(self):
@@ -271,6 +284,32 @@ class ReolinkApi(object):
                 return False
         except requests.exceptions.RequestException:
             _LOGGER.error(f"Error translating IR Lights response to json")
+            return False
+
+    async def set_recording(self, enabled):
+        await self.get_settings()
+
+        if not self._recording_settings:
+            _LOGGER.error("Error while fetching current recording settings")
+            return
+
+        if enabled == True:
+            newValue = 1
+        else:
+            newValue = 0
+
+        body = [{"cmd":"SetRec","action":0,"param": self._recording_settings["value"] }]
+        body[0]["param"]["Rec"]["schedule"]["enable"] = newValue
+
+        response = await self.send(body, {"cmd": "SetRec", "token": self._token} )
+        try:
+            json_data = json.loads(response)
+            if json_data[0]["value"]["rspCode"] == 200:
+                return True
+            else:
+                return False
+        except:
+            _LOGGER.error(f"Error translating Recording response to json")
             return False
 
     async def send(self, body, param, stream=False):

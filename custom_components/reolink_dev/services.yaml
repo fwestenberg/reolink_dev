@@ -39,3 +39,17 @@ disable_ir_lights:
     entity_id:
       description: Name of the Reolink camera entity to set.
       example: 'camera.frontdoor'
+      
+enable_recording:
+  description: Enable the motion recording of the Reolink camera.
+  fields:
+    entity_id:
+      description: Name of the Reolink camera entity to set.
+      example: 'camera.frontdoor'
+      
+disable_ir_lights:
+  description: Disable the motion recording of the Reolink camera.
+  fields:
+    entity_id:
+      description: Name of the Reolink camera entity to set.
+      example: 'camera.frontdoor'
