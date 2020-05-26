@@ -33,6 +33,8 @@ SERVICE_ENABLE_EMAIL = 'enable_email'
 SERVICE_DISABLE_EMAIL = 'disable_email'
 SERVICE_ENABLE_IR_LIGHTS = 'enable_ir_lights'
 SERVICE_DISABLE_IR_LIGHTS = 'disable_ir_lights'
+SERVICE_ENABLE_RECORDING = 'enable_recording'
+SERVICE_DISABLE_RECORDING = 'disable_recording'
 
 DEFAULT_BRAND = 'Reolink'
 DOMAIN_DATA = 'reolink_devices'
@@ -83,7 +85,6 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
 
         if entity:
             entity.disable_ftp_upload()
-
     hass.services.async_register(DOMAIN, SERVICE_DISABLE_FTP, handler_disable_ftp)
 
 # Event enable email
@@ -102,7 +103,6 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
 
         if entity:
             entity.disable_email()
-
     hass.services.async_register(DOMAIN, SERVICE_DISABLE_EMAIL, handler_disable_email)
 
 # Event enable ir lights
@@ -121,9 +121,25 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
 
         if entity:
             entity.disable_ir_lights()
-
     hass.services.async_register(DOMAIN, SERVICE_DISABLE_IR_LIGHTS, handler_disable_ir_lights)
 
+# Event enable recording
+    def handler_enable_recording(call):
+        component = hass.data.get(DOMAIN)
+        entity = component.get_entity(call.data.get(ATTR_ENTITY_ID))
+
+        if entity:
+            entity.enable_recording()
+    hass.services.async_register(DOMAIN, SERVICE_ENABLE_RECORDING, handler_enable_recording)
+
+# Event disable recording
+    def handler_disable_recording(call):
+        component = hass.data.get(DOMAIN)
+        entity = component.get_entity(call.data.get(ATTR_ENTITY_ID))
+
+        if entity:
+            entity.disable_recording()
+    hass.services.async_register(DOMAIN, SERVICE_DISABLE_RECORDING, handler_disable_recording)
 
 class ReolinkCamera(Camera):
     """An implementation of a Reolink IP camera."""
@@ -149,6 +165,7 @@ class ReolinkCamera(Camera):
         self._ftp_state = None
         self._email_state = None
         self._ir_state = None
+        self._recording_state = None
         self._ptzpresets = dict()
         self._state = STATE_IDLE
 
@@ -168,6 +185,7 @@ class ReolinkCamera(Camera):
         attrs["ftp_enabled"] = self._ftp_state
         attrs["email_enabled"] = self._email_state
         attrs["ir_lights_enabled"] = self._ir_state
+        attrs["recording_enabled"] = self._recording_state
         attrs["ptzpresets"] = self._ptzpresets
 
         return attrs
@@ -194,13 +212,18 @@ class ReolinkCamera(Camera):
 
     @property
     def ftp_state(self):
-        """Camera Motion recording Status."""
+        """Camera Motion FTP upload Status."""
         return self._ftp_state
 
     @property
     def email_state(self):
         """Camera email Status."""
         return self._email_state
+
+    @property
+    def recording_state(self):
+        """Camera recording status."""
+        return self._recording_state
 
     @property
     def ptzpresets(self):
@@ -279,6 +302,18 @@ class ReolinkCamera(Camera):
             self._ir_state = False
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
 
+    def enable_recording(self):
+        """Enable recording."""
+        if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_recording(True), self.hass.loop).result():
+            self._recording_state = True
+            self._hass.states.set(self.entity_id, self.state, self.state_attributes)
+
+    def disable_recording(self):
+        """Disable recording."""
+        if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_recording(False), self.hass.loop).result():
+            self._recording_state = False
+            self._hass.states.set(self.entity_id, self.state, self.state_attributes)
+
     async def update_motion_state(self):
         await self._reolinkSession.get_motion_state()
 
@@ -295,6 +330,7 @@ class ReolinkCamera(Camera):
         self._ftp_state = self._reolinkSession.ftp_state
         self._email_state = self._reolinkSession.email_state
         self._ir_state = self._reolinkSession.ir_state
+        self._recording_state = self._reolinkSession.recording_state
         self._ptzpresets = self._reolinkSession.ptzpresets
 
     async def async_update(self):
