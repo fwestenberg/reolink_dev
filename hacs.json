@@ -1,0 +1,5 @@
+{
+  "name": "Reolink IP camera",
+  "domains": "camera",
+  "iot_class": "Local Push"
+}
