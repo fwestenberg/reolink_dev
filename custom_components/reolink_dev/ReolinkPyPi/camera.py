@@ -26,6 +26,7 @@ class ReolinkApi(object):
         self._rtspport = None
         self._rtmpport = None
         self._ptzpresets = dict()
+        self._motion_detection_state = None
 
     def session_active(self):
         return self._token is not None
@@ -41,7 +42,8 @@ class ReolinkApi(object):
             {"cmd": "GetEmail", "action": 1, "param": param_channel},
             {"cmd": "GetIrLights", "action": 1, "param": param_channel},
             {"cmd": "GetRec", "action": 1, "param": param_channel},
-            {"cmd": "GetPtzPreset", "action": 1, "param": param_channel}]
+            {"cmd": "GetPtzPreset", "action": 1, "param": param_channel},
+            {"cmd": "GetAlarm","action":1,"param":{"Alarm":{"channel": param_channel ,"type":"md"}}}]
 
         param = {"token": self._token}
         response = await self.send(body, param)
@@ -101,6 +103,13 @@ class ReolinkApi(object):
                             _LOGGER.debug(f"Got preset {preset_name} with ID {preset_id}")
                         else:
                             _LOGGER.debug(f"Preset is not enabled: {preset}")
+                
+                elif data["cmd"] == "GetPtzPreset":
+                    self._motion_detection_settings = data
+                    if (data["value"]["Alarm"]["enable"] == 1):
+                        self._motion_detection_state = True
+                    else:
+                        self._motion_detection_state = False
             except:
                 continue    
 
@@ -180,6 +189,11 @@ class ReolinkApi(object):
     @property
     def ptzpresets(self):
         return self._ptzpresets
+
+    @property
+    def motion_detection_state(self):
+        """Camera motion detection setting status."""
+        return self._motion_detection_state
 
     async def login(self, username, password):
         body = [{"cmd": "Login", "action": 0, "param": {"User": {"userName": username, "password": password}}}]
@@ -302,6 +316,34 @@ class ReolinkApi(object):
         body[0]["param"]["Rec"]["schedule"]["enable"] = newValue
 
         response = await self.send(body, {"cmd": "SetRec", "token": self._token} )
+        try:
+            json_data = json.loads(response)
+            if json_data[0]["value"]["rspCode"] == 200:
+                return True
+            else:
+                return False
+        except:
+            _LOGGER.error(f"Error translating Recording response to json")
+            return False
+
+    async def set_motion_detection(self, enabled):
+        await self.get_settings()
+
+        if not self._motion_detection_setting:
+            _LOGGER.error("Error while fetching current motion detection settings")
+            return
+
+        if enabled == True:
+            newValue = 1
+        else:
+            newValue = 0
+
+        body = [{"cmd":"SetAlarm","action":0,"param": self._recording_settings["value"] }]
+        body[0]["param"]["Alarm"]["enable"] = newValue
+        body[0]["param"]["Alarm"]["channel"] = 0
+        body[0]["param"]["Alarm"]["type"] = "md"
+        _LOGGER.debug(f"body: " body)
+        response = await self.send(body, {"cmd": "SetAlarm", "token": self._token} )
         try:
             json_data = json.loads(response)
             if json_data[0]["value"]["rspCode"] == 200:
