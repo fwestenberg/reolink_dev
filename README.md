@@ -132,6 +132,23 @@ switch:
           {% else %}
             mdi:flashlight-off
           {% endif %}
+
+      camera_motion_detection:
+        value_template: "{{ is_state_attr('camera.frontdoor', 'motion_detection_enabled', true) }}"
+        turn_on:
+          service: camera.enable_motion_detection
+          data:
+            entity_id: camera.frontdoor
+        turn_off:
+          service: camera.disable_motion_detection
+          data:
+            entity_id: camera.frontdoor
+        icon_template: >-
+          {% if is_state_attr('camera.frontdoor', 'motion_detection_enabled', true) %}
+            mdi:motion-sensor
+          {% else %}
+            mdi:motion-sensor-off
+          {% endif %}
 ```
 2. Restart Home Assistant.
 
