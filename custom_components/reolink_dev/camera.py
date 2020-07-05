@@ -350,7 +350,7 @@ class ReolinkCamera(Camera):
 
     def disable_motion_detection(self):
         """Disable motion detecion."""
-        if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_motion_detecion(False), self.hass.loop).result():
+        if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_motion_detection(False), self.hass.loop).result():
             self._motion_detection_state = False
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
     

@@ -43,7 +43,10 @@ class ReolinkApi(object):
             {"cmd": "GetIrLights", "action": 1, "param": param_channel},
             {"cmd": "GetRec", "action": 1, "param": param_channel},
             {"cmd": "GetPtzPreset", "action": 1, "param": param_channel},
-            {"cmd": "GetAlarm","action":1,"param":{"Alarm":{"channel": param_channel ,"type":"md"}}}]
+            {"cmd": "GetAlarm","action":1,"param":{"Alarm":{"channel": self._channel ,"type":"md"}}}]
+            # the call must be like this:
+            #[{"cmd":"GetAlarm","action":1,"param":{"Alarm":{"channel":0,"type":"md"}}}]
+            #so we cannot use  param_channel
 
         param = {"token": self._token}
         response = await self.send(body, param)
@@ -104,8 +107,9 @@ class ReolinkApi(object):
                         else:
                             _LOGGER.debug(f"Preset is not enabled: {preset}")
                 
-                elif data["cmd"] == "GetPtzPreset":
+                elif data["cmd"] == "GetAlarm":
                     self._motion_detection_settings = data
+                    self._pippo = data
                     if (data["value"]["Alarm"]["enable"] == 1):
                         self._motion_detection_state = True
                     else:
@@ -329,7 +333,7 @@ class ReolinkApi(object):
     async def set_motion_detection(self, enabled):
         await self.get_settings()
 
-        if not self._motion_detection_setting:
+        if not self._motion_detection_settings:
             _LOGGER.error("Error while fetching current motion detection settings")
             return
 
@@ -338,11 +342,10 @@ class ReolinkApi(object):
         else:
             newValue = 0
 
-        body = [{"cmd":"SetAlarm","action":0,"param": self._recording_settings["value"] }]
+        body = [{"cmd":"SetAlarm","action":0,"param": self._motion_detection_settings["value"] }]
         body[0]["param"]["Alarm"]["enable"] = newValue
         body[0]["param"]["Alarm"]["channel"] = 0
         body[0]["param"]["Alarm"]["type"] = "md"
-        _LOGGER.debug(f"body: " body)
         response = await self.send(body, {"cmd": "SetAlarm", "token": self._token} )
         try:
             json_data = json.loads(response)
