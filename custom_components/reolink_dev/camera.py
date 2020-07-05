@@ -230,6 +230,11 @@ class ReolinkCamera(Camera):
         """Camera PTZ presets list."""
         return self._ptzpresets
 
+    @property
+    def motion_detection_state(self):
+        """Camera motion detection setting status."""
+        return self._motion_detection_state
+
     async def stream_source(self):
         """Return the source of the stream."""
         if self._protocol == "rtsp":
