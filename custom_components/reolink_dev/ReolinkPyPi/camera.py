@@ -344,8 +344,6 @@ class ReolinkApi(object):
 
         body = [{"cmd":"SetAlarm","action":0,"param": self._motion_detection_settings["value"] }]
         body[0]["param"]["Alarm"]["enable"] = newValue
-        body[0]["param"]["Alarm"]["channel"] = 0
-        body[0]["param"]["Alarm"]["type"] = "md"
         response = await self.send(body, {"cmd": "SetAlarm", "token": self._token} )
         try:
             json_data = json.loads(response)
