@@ -53,3 +53,17 @@ disable_recording:
     entity_id:
       description: Name of the Reolink camera entity to set.
       example: 'camera.frontdoor'
+
+enable_motion_detection:
+  description: Enable the motion detection of the Reolink camera.
+  fields:
+    entity_id:
+      description: Name of the Reolink camera entity to set.
+      example: 'camera.frontdoor'
+      
+disable_motion_detection:
+  description: Disable the motion detection of the Reolink camera.
+  fields:
+    entity_id:
+      description: Name of the Reolink camera entity to set.
+      example: 'camera.frontdoor'
