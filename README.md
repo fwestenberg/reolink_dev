@@ -133,7 +133,7 @@ switch:
             mdi:flashlight-off
           {% endif %}
 
-      camera_motion_detection:
+      camera_frontdoor_motion_detection:
         value_template: "{{ is_state_attr('camera.frontdoor', 'motion_detection_enabled', true) }}"
         turn_on:
           service: camera.enable_motion_detection
@@ -165,6 +165,7 @@ entities:
   - switch.camera_frontdoor_ir_lights
   - switch.camera_frontdoor_email
   - switch.camera_frontdoor_ftp
+  - switch.camera_frontdoor_motion_detection
   - binary_sensor.motion_frontdoor
 ```
 
