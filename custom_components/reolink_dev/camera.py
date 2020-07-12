@@ -35,6 +35,8 @@ SERVICE_ENABLE_IR_LIGHTS = 'enable_ir_lights'
 SERVICE_DISABLE_IR_LIGHTS = 'disable_ir_lights'
 SERVICE_ENABLE_RECORDING = 'enable_recording'
 SERVICE_DISABLE_RECORDING = 'disable_recording'
+SERVICE_ENABLE_MOTION_DETECTION = 'enable_motion_detection'
+SERVICE_DISABLE_MOTION_DETECTION = 'disable_motion_detection'
 
 DEFAULT_BRAND = 'Reolink'
 DOMAIN_DATA = 'reolink_devices'
@@ -141,6 +143,25 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
             entity.disable_recording()
     hass.services.async_register(DOMAIN, SERVICE_DISABLE_RECORDING, handler_disable_recording)
 
+# Event enable motion detection
+    def handler_enable_motion_detection(call):
+        component = hass.data.get(DOMAIN)
+        entity = component.get_entity(call.data.get(ATTR_ENTITY_ID))
+
+        if entity:
+            entity.enable_motion_detection()
+    hass.services.async_register(DOMAIN, SERVICE_ENABLE_RECORDING, handler_enable_motion_detection)
+
+# Event disable recording
+    def handler_disable_motion_detection(call):
+        component = hass.data.get(DOMAIN)
+        entity = component.get_entity(call.data.get(ATTR_ENTITY_ID))
+
+        if entity:
+            entity.disable_motion_detection()
+    hass.services.async_register(DOMAIN, SERVICE_DISABLE_RECORDING, handler_disable_motion_detection)
+
+
 class ReolinkCamera(Camera):
     """An implementation of a Reolink IP camera."""
 
@@ -167,6 +188,7 @@ class ReolinkCamera(Camera):
         self._ir_state = None
         self._recording_state = None
         self._ptzpresets = dict()
+        self._motion_detection_state = None
         self._state = STATE_IDLE
 
         self._hass.bus.async_listen(EVENT_HOMEASSISTANT_STOP, self.disconnect)
@@ -187,6 +209,7 @@ class ReolinkCamera(Camera):
         attrs["ir_lights_enabled"] = self._ir_state
         attrs["recording_enabled"] = self._recording_state
         attrs["ptzpresets"] = self._ptzpresets
+        attrs["motion_detection_enabled"] = self._motion_detection_state
 
         return attrs
 
@@ -229,6 +252,11 @@ class ReolinkCamera(Camera):
     def ptzpresets(self):
         """Camera PTZ presets list."""
         return self._ptzpresets
+
+    @property
+    def motion_detection_state(self):
+        """Camera motion detection setting status."""
+        return self._motion_detection_state
 
     async def stream_source(self):
         """Return the source of the stream."""
@@ -314,6 +342,18 @@ class ReolinkCamera(Camera):
             self._recording_state = False
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
 
+    def enable_motion_detection(self):
+        """Enable motion_detecion."""
+        if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_motion_detection(True), self.hass.loop).result():
+            self._motion_detection_state = True
+            self._hass.states.set(self.entity_id, self.state, self.state_attributes)
+
+    def disable_motion_detection(self):
+        """Disable motion detecion."""
+        if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_motion_detection(False), self.hass.loop).result():
+            self._motion_detection_state = False
+            self._hass.states.set(self.entity_id, self.state, self.state_attributes)
+    
     async def update_motion_state(self):
         await self._reolinkSession.get_motion_state()
 
@@ -332,6 +372,7 @@ class ReolinkCamera(Camera):
         self._ir_state = self._reolinkSession.ir_state
         self._recording_state = self._reolinkSession.recording_state
         self._ptzpresets = self._reolinkSession.ptzpresets
+        self._motion_detection_state = self._reolinkSession.motion_detection_state
 
     async def async_update(self):
         """Update the data from the camera."""
