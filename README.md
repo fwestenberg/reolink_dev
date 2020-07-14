@@ -1,7 +1,7 @@
 <h2 align="center">
   <a href="https://reolink.com"><img src="./logo.png" alt="Reolink logotype" width="200"></a>
   <br>
-  <i>Reolink custom component for Home Assistant</i>
+  <i>Home Assistant Reolink addon</i>
   <br>
 </h2>
 
