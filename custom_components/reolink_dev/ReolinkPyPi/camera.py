@@ -60,7 +60,7 @@ class ReolinkApi(object):
 
         for data in json_data:
             try:
-                if data["cmd"] == "GetDevInfo": 
+                if data["cmd"] == "GetDevInfo":
                     self._device_info = data
 
                 elif data["cmd"] == "GetNetPort":
@@ -68,7 +68,7 @@ class ReolinkApi(object):
                     self._rtspport = data["value"]["NetPort"]["rtspPort"]
                     self._rtmpport = data["value"]["NetPort"]["rtmpPort"]
 
-                elif data["cmd"] == "GetFtp": 
+                elif data["cmd"] == "GetFtp":
                     self._ftp_settings = data
                     if (data["value"]["Ftp"]["schedule"]["enable"] == 1):
                         self._ftp_state = True
@@ -81,7 +81,7 @@ class ReolinkApi(object):
                         self._email_state = True
                     else:
                         self._email_state = False
-                        
+
                 elif data["cmd"] == "GetIrLights":
                     self._ir_settings = data
                     if (data["value"]["IrLights"]["state"] == "Auto"):
@@ -106,21 +106,22 @@ class ReolinkApi(object):
                             _LOGGER.debug(f"Got preset {preset_name} with ID {preset_id}")
                         else:
                             _LOGGER.debug(f"Preset is not enabled: {preset}")
-                
+
                 elif data["cmd"] == "GetAlarm":
                     self._motion_detection_settings = data
                     self._pippo = data
+
                     if (data["value"]["Alarm"]["enable"] == 1):
                         self._motion_detection_state = True
                     else:
                         self._motion_detection_state = False
             except:
-                continue    
+                continue
 
     async def get_motion_state(self):
         body = [{"cmd": "GetMdState", "action": 0, "param":{"channel":self._channel}}]
         param = {"token": self._token}
-        
+
         response = await self.send(body, param)
 
         try:
@@ -132,7 +133,7 @@ class ReolinkApi(object):
                 return self._motion_state
 
             if json_data[0]["value"]["state"] == 1:
-                self._motion_state = True 
+                self._motion_state = True
                 self._last_motion = datetime.datetime.now()
             else:
                 self._motion_state = False
@@ -140,7 +141,7 @@ class ReolinkApi(object):
             self._motion_state = False
 
         return self._motion_state
-    
+
     @property
     async def still_image(self):
         response = await self.send(None, f"?cmd=Snap&channel={self._channel}&token={self._token}", stream=True)
@@ -202,7 +203,7 @@ class ReolinkApi(object):
     async def login(self, username, password):
         body = [{"cmd": "Login", "action": 0, "param": {"User": {"userName": username, "password": password}}}]
         param = {"cmd": "Login", "token": "null"}
-        
+
         response = await self.send(body, param)
 
         try:
@@ -225,6 +226,7 @@ class ReolinkApi(object):
         param = {"cmd": "Logout", "token": self._token}
 
         await self.send(body, param)
+        self._token = None
 
     async def set_ftp(self, enabled):
         await self.get_settings()
@@ -344,6 +346,7 @@ class ReolinkApi(object):
 
         body = [{"cmd":"SetAlarm","action":0,"param": self._motion_detection_settings["value"] }]
         body[0]["param"]["Alarm"]["enable"] = newValue
+
         response = await self.send(body, {"cmd": "SetAlarm", "token": self._token} )
         try:
             json_data = json.loads(response)
@@ -356,10 +359,10 @@ class ReolinkApi(object):
             return False
 
     async def send(self, body, param, stream=False):
-        if (self._token is None and 
+        if (self._token is None and
             (body is None or body[0]["cmd"] != "Login")):
             _LOGGER.info(f"Reolink camera at IP {self._ip} is not logged in")
-            return   
+            return
 
         timeout = aiohttp.ClientTimeout(total=10)
 

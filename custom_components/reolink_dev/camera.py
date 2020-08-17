@@ -15,6 +15,7 @@ from custom_components.reolink_dev.ReolinkPyPi.camera import ReolinkApi
 
 _LOGGER = logging.getLogger(__name__)
 
+STATE_OFF = "off"
 STATE_MOTION = "motion"
 STATE_NO_MOTION = "no_motion"
 STATE_IDLE = "idle"
@@ -200,7 +201,7 @@ class ReolinkCamera(Camera):
 
         if self._last_motion:
             attrs["last_motion"] = self._last_motion
-        
+
         if self._last_update:
             attrs["last_update"] = self._last_update
 
@@ -269,6 +270,9 @@ class ReolinkCamera(Camera):
         return stream_source
 
     async def handle_async_mjpeg_stream(self, request):
+        if self._state == STATE_OFF:
+            return
+
         """Generate an HTTP MJPEG stream from the camera."""
         stream_source = await self.stream_source()
 
@@ -287,73 +291,120 @@ class ReolinkCamera(Camera):
             await stream.close()
 
     async def camera_image(self):
+        if self._state == STATE_OFF:
+            return
+
         """Return bytes of camera image."""
         return self._reolinkSession.still_image
 
     async def async_camera_image(self):
+        if self._state == STATE_OFF:
+            return
+
         """Return a still image response from the camera."""
         return await self._reolinkSession.snapshot
 
+    async def async_turn_off(self):
+        self._state = STATE_OFF
+
+        await self.disconnect("turn_off")
+
+    async def async_turn_on(self):
+        self._state = STATE_IDLE
+        self._last_update = 0
+
+        await self.async_update()
+
     def enable_ftp_upload(self):
+        if self._state == STATE_OFF:
+            return
+
         """Enable motion ftp recording in camera."""
         if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_ftp(True), self.hass.loop).result():
             self._ftp_state = True
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
 
     def disable_ftp_upload(self):
+        if self._state == STATE_OFF:
+            return
+
         """Disable motion ftp recording."""
         if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_ftp(False), self.hass.loop).result():
             self._ftp_state = False
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
 
     def enable_email(self):
+        if self._state == STATE_OFF:
+            return
+
         """Enable email motion detection in camera."""
         if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_email(True), self.hass.loop).result():
             self._email_state = True
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
 
     def disable_email(self):
+        if self._state == STATE_OFF:
+            return
+
         """Disable email motion detection."""
         if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_email(False), self.hass.loop).result():
             self._email_state = False
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
 
     def enable_ir_lights(self):
+        if self._state == STATE_OFF:
+            return
+
         """Enable IR lights."""
         if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_ir_lights(True), self.hass.loop).result():
             self._ir_state = True
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
 
     def disable_ir_lights(self):
+        if self._state == STATE_OFF:
+            return
+
         """Disable IR lights."""
         if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_ir_lights(False), self.hass.loop).result():
             self._ir_state = False
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
 
     def enable_recording(self):
+        if self._state == STATE_OFF:
+            return
+
         """Enable recording."""
         if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_recording(True), self.hass.loop).result():
             self._recording_state = True
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
 
     def disable_recording(self):
+        if self._state == STATE_OFF:
+            return
+
         """Disable recording."""
         if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_recording(False), self.hass.loop).result():
             self._recording_state = False
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
 
     def enable_motion_detection(self):
+        if self._state == STATE_OFF:
+            return
+
         """Enable motion_detecion."""
         if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_motion_detection(True), self.hass.loop).result():
             self._motion_detection_state = True
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
 
     def disable_motion_detection(self):
+        if self._state == STATE_OFF:
+            return
+
         """Disable motion detecion."""
         if asyncio.run_coroutine_threadsafe(self._reolinkSession.set_motion_detection(False), self.hass.loop).result():
             self._motion_detection_state = False
             self._hass.states.set(self.entity_id, self.state, self.state_attributes)
-    
+
     async def update_motion_state(self):
         await self._reolinkSession.get_motion_state()
 
@@ -362,7 +413,7 @@ class ReolinkCamera(Camera):
             self._last_motion = self._reolinkSession.last_motion
         else:
             self._state = STATE_NO_MOTION
-    
+
     async def update_status(self):
         await self._reolinkSession.get_settings()
 
@@ -375,6 +426,9 @@ class ReolinkCamera(Camera):
         self._motion_detection_state = self._reolinkSession.motion_detection_state
 
     async def async_update(self):
+        if self._state == STATE_OFF:
+            return
+
         """Update the data from the camera."""
         if not self._reolinkSession.session_active():
             if (self._last_update == 0 or
@@ -383,22 +437,22 @@ class ReolinkCamera(Camera):
                 await self._reolinkSession.login(self._username, self._password)
             else:
                 return
-        
+
         if not self._reolinkSession.session_active():
             _LOGGER.error(f"Failed to reconnect with Reolink at IP {self._host}. Retrying in 60 seconds.")
             self._last_update = datetime.datetime.now()
+        else:
+            try:
+                #asyncio.run_coroutine_threadsafe(self.update_motion_state(), self.hass.loop).result()
+                await self.update_motion_state()
 
-        try:
-            #asyncio.run_coroutine_threadsafe(self.update_motion_state(), self.hass.loop).result()
-            await self.update_motion_state()
+                if (self._last_update == 0 or
+                   (datetime.datetime.now() - self._last_update).total_seconds() >= 30):
+                    #asyncio.run_coroutine_threadsafe(self.update_status(), self.hass.loop)
+                    await self.update_status()
 
-            if (self._last_update == 0 or
-               (datetime.datetime.now() - self._last_update).total_seconds() >= 30):
-                #asyncio.run_coroutine_threadsafe(self.update_status(), self.hass.loop)
-                await self.update_status()
-
-        except Exception as ex:
-            _LOGGER.error(f"Got exception while fetching the state: {ex}")
+            except Exception as ex:
+                _LOGGER.error(f"Got exception while fetching the state: {ex}")
 
     async def disconnect(self, event):
         _LOGGER.info("Disconnecting from Reolink camera")
