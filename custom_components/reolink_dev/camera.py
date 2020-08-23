@@ -306,7 +306,7 @@ class ReolinkCamera(Camera):
 
     @property
     def is_on(self):
-        return self._state not STATE_OFF
+        return self._state is not STATE_OFF
 
     async def async_turn_off(self):
         self._state = STATE_OFF
