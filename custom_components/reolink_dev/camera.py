@@ -399,6 +399,7 @@ class ReolinkCamera(Camera):
 
         except Exception as ex:
             _LOGGER.error(f"Got exception while fetching the state: {ex}")
+            self._reolinkSession.clear_token()
 
     async def disconnect(self, event):
         _LOGGER.info("Disconnecting from Reolink camera")
