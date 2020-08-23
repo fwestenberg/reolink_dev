@@ -225,8 +225,12 @@ class ReolinkApi(object):
         body = [{"cmd":"Logout","action":0,"param":{}}]
         param = {"cmd": "Logout", "token": self._token}
 
-        await self.send(body, param)
-        self._token = None
+        self.clear_token()
+
+        try:
+            await self.send(body, param)
+        except:
+            _LOGGER.info("Couldn't perform logout. Camera may already be turned off")
 
     async def set_ftp(self, enabled):
         await self.get_settings()
