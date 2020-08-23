@@ -372,3 +372,6 @@ class ReolinkApi(object):
                 async with session.post(url=self._url, json=body, params=param) as response:
                     json_data = await response.text()
                     return json_data
+
+    def clear_token(self):
+        self._token = None
