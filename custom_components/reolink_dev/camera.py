@@ -4,7 +4,7 @@ import asyncio
 import voluptuous as vol
 import datetime
 
-from homeassistant.components.camera import Camera, PLATFORM_SCHEMA, SUPPORT_STREAM, ENTITY_IMAGE_URL
+from homeassistant.components.camera import Camera, PLATFORM_SCHEMA, SUPPORT_ON_OFF, SUPPORT_STREAM, ENTITY_IMAGE_URL
 from homeassistant.const import CONF_HOST, CONF_NAME, CONF_USERNAME, CONF_PASSWORD, ATTR_ENTITY_ID, EVENT_HOMEASSISTANT_STOP
 from homeassistant.helpers import config_validation as cv
 
