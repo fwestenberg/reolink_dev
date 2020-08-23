@@ -217,7 +217,7 @@ class ReolinkCamera(Camera):
     @property
     def supported_features(self):
         """Return supported features."""
-        return SUPPORT_STREAM
+        return SUPPORT_ON_OFF | SUPPORT_STREAM
 
     @property
     def name(self):
@@ -303,6 +303,10 @@ class ReolinkCamera(Camera):
 
         """Return a still image response from the camera."""
         return await self._reolinkSession.snapshot
+
+    @property
+    def is_on(self):
+        return self._state not STATE_OFF
 
     async def async_turn_off(self):
         self._state = STATE_OFF

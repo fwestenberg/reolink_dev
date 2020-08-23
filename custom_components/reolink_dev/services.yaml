@@ -67,3 +67,17 @@ disable_motion_detection:
     entity_id:
       description: Name of the Reolink camera entity to set.
       example: 'camera.frontdoor'
+
+turn_off:
+  description: 'Virtually' turns the camera off: Reolink camera have no on/off switch, but this service marks the camera as offline for HA.
+  fields:
+    entity_id:
+      description: Name of the Reolink camera entity to turn off.
+      example: 'camera.frontdoor'
+
+turn_on:
+  description: 'Virtually' turns the camera back on: Reolink camera have no on/off switch, but this service marks the camera as online for HA.
+  fields:
+    entity_id:
+      description: Name of the Reolink camera entity to turn on.
+      example: 'camera.frontdoor'
