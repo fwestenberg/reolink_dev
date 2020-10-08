@@ -74,7 +74,6 @@ binary_sensor:
     motion_frontdoor:
       friendly_name: Camera frontdoor
       device_class: motion
-      entity_id: camera.frontdoor
       value_template: "{{ is_state('camera.frontdoor', 'motion') }}"
       delay_off: 
           seconds: 30
