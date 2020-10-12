@@ -36,13 +36,13 @@ class ReolinkApi(object):
             return
 
         param_channel = {"channel": self._channel}
-        body = [{"cmd": "GetDevInfo", "action":1, "param": param_channel},
-            {"cmd": "GetNetPort", "action": 1, "param": param_channel},
-            {"cmd": "GetFtp", "action": 1, "param": param_channel},
-            {"cmd": "GetEmail", "action": 1, "param": param_channel},
-            {"cmd": "GetIrLights", "action": 1, "param": param_channel},
-            {"cmd": "GetRec", "action": 1, "param": param_channel},
-            {"cmd": "GetPtzPreset", "action": 1, "param": param_channel},
+        body = [{"cmd": "GetDevInfo", "action":1, "param": {"channel": self._channel}},
+            {"cmd": "GetNetPort", "action": 1, "param": {"channel": self._channel}},
+            {"cmd": "GetFtp", "action": 1, "param": {"channel": self._channel}},
+            {"cmd": "GetEmail", "action": 1, "param": {"channel": self._channel}},
+            {"cmd": "GetIsp", "action": 1, "param": {"channel": self._channel}},
+            {"cmd": "GetRec", "action": 1, "param": {"channel": self._channel}},
+            {"cmd": "GetPtzPreset", "action": 1, "param": {"channel": self._channel}},
             {"cmd": "GetAlarm","action":1,"param":{"Alarm":{"channel": self._channel ,"type":"md"}}}]
             # the call must be like this:
             #[{"cmd":"GetAlarm","action":1,"param":{"Alarm":{"channel":0,"type":"md"}}}]
@@ -60,7 +60,7 @@ class ReolinkApi(object):
 
         for data in json_data:
             try:
-                if data["cmd"] == "GetDevInfo": 
+                if data["cmd"] == "GetDevInfo":
                     self._device_info = data
 
                 elif data["cmd"] == "GetNetPort":
@@ -68,7 +68,7 @@ class ReolinkApi(object):
                     self._rtspport = data["value"]["NetPort"]["rtspPort"]
                     self._rtmpport = data["value"]["NetPort"]["rtmpPort"]
 
-                elif data["cmd"] == "GetFtp": 
+                elif data["cmd"] == "GetFtp":
                     self._ftp_settings = data
                     if (data["value"]["Ftp"]["schedule"]["enable"] == 1):
                         self._ftp_state = True
@@ -81,10 +81,10 @@ class ReolinkApi(object):
                         self._email_state = True
                     else:
                         self._email_state = False
-                        
-                elif data["cmd"] == "GetIrLights":
+
+                elif data["cmd"] == "GetIsp":
                     self._ir_settings = data
-                    if (data["value"]["IrLights"]["state"] == "Auto"):
+                    if (data["value"]["Isp"]["dayNight"] == "Auto"):
                         self._ir_state = True
                     else:
                         self._ir_state = False
@@ -106,7 +106,7 @@ class ReolinkApi(object):
                             _LOGGER.debug(f"Got preset {preset_name} with ID {preset_id}")
                         else:
                             _LOGGER.debug(f"Preset is not enabled: {preset}")
-                
+
                 elif data["cmd"] == "GetAlarm":
                     self._motion_detection_settings = data
                     self._pippo = data
@@ -115,12 +115,12 @@ class ReolinkApi(object):
                     else:
                         self._motion_detection_state = False
             except:
-                continue    
+                continue
 
     async def get_motion_state(self):
         body = [{"cmd": "GetMdState", "action": 0, "param":{"channel":self._channel}}]
         param = {"token": self._token}
-        
+
         response = await self.send(body, param)
 
         try:
@@ -132,7 +132,7 @@ class ReolinkApi(object):
                 return self._motion_state
 
             if json_data[0]["value"]["state"] == 1:
-                self._motion_state = True 
+                self._motion_state = True
                 self._last_motion = datetime.datetime.now()
             else:
                 self._motion_state = False
@@ -140,7 +140,7 @@ class ReolinkApi(object):
             self._motion_state = False
 
         return self._motion_state
-    
+
     @property
     async def still_image(self):
         response = await self.send(None, f"?cmd=Snap&channel={self._channel}&token={self._token}", stream=True)
@@ -202,7 +202,7 @@ class ReolinkApi(object):
     async def login(self, username, password):
         body = [{"cmd": "Login", "action": 0, "param": {"User": {"userName": username, "password": password}}}]
         param = {"cmd": "Login", "token": "null"}
-        
+
         response = await self.send(body, param)
 
         try:
@@ -288,10 +288,10 @@ class ReolinkApi(object):
         if enabled == True:
             newValue = "Auto"
         else:
-            newValue = "Off"
+            newValue = "Color"
 
-        body = [{"cmd":"SetIrLights","action":0,"param": self._ir_settings["value"] }]
-        body[0]["param"]["IrLights"]["state"] = newValue
+        body = [{"cmd":"SetIsp","action":0,"param": self._ir_settings["value"] }]
+        body[0]["param"]["Isp"]["dayNight"] = newValue
 
         response = await self.send(body, {"cmd": "SetIrLights", "token": self._token} )
         try:
@@ -356,10 +356,10 @@ class ReolinkApi(object):
             return False
 
     async def send(self, body, param, stream=False):
-        if (self._token is None and 
+        if (self._token is None and
             (body is None or body[0]["cmd"] != "Login")):
             _LOGGER.info(f"Reolink camera at IP {self._ip} is not logged in")
-            return   
+            return
 
         timeout = aiohttp.ClientTimeout(total=10)
 
