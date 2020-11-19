@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/custom-components/hacs"><img src="https://img.shields.io/badge/HACS-Custom-orange.svg"></a>
-  <img src="https://img.shields.io/github/v/release/fwestenberg/reolink" alt="Current version">
+  <img src="https://img.shields.io/github/v/release/fwestenberg/reolink_dev" alt="Current version">
 </p>
 
 <p align="center">
@@ -31,13 +31,13 @@
 
 ```bash
 # Download a copy of this repository
-$ wget https://github.com/fwestenberg/reolink/archive/master.zip
+$ wget https://github.com/fwestenberg/reolink_dev/archive/master.zip
 
 # Unzip the archive
 $ unzip master.zip
 
 # Move the reolink_dev directory into your custom_components directory in your Home Assistant install
-$ mv reolink-master/custom_components/reolink_dev <home-assistant-install-directory>/config/custom_components/
+$ mv reolink_dev-master/custom_components/reolink_dev <home-assistant-install-directory>/config/custom_components/
 ```
 
 
