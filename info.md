@@ -18,6 +18,7 @@ A Home Assistant integration for your Reolink security cameras which enables you
 - Switches instead of events
 - Services: SET_SENSITIVITY, SET_DAYNIGHT, PTZ_CONTROL
 - Camera settings can be changed from the options menu
+
 **Bugfixes:**
 - Motion detection not working (#85)
 - Error that is only fixed by rebooting the camera (#83)
