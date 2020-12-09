@@ -10,179 +10,87 @@
   <img src="https://img.shields.io/github/v/release/fwestenberg/reolink_dev" alt="Current version">
 </p>
 
-<p align="center">
-  <img src="./Lovelace%20Card.PNG?raw=true" alt="Example Lovelace card">
-</p>
+The `reolink` implementation allows you to integrate your [Reolink](https://www.reolink.com/) devices in Home Assistant.
 
-## Table of contents
+You can configure the Reolink integration by going to the integrations page inside the configuration panel.
 
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [Usage](#-usage)
-- [Unsupported models](#-unsupported-models)
-- [Troubleshooting](#-troubleshooting)
+## Services
 
----
+The Reolink integration supports all default camera [services](https://www.home-assistant.io/integrations/camera/#services) and additionally provides the following services:
 
+### Service `reolink.set_sensitivity`
 
-## Installation
+Set the motion detection sensitivity of the camera. Either all time schedule presets can be set at once, or a specific preset can be specified.
 
-### Manual install
+| Service data attribute  | Optional  | Description  |
+| :---------------------- | :-------- | :----------- |
+| `entity_id`             | no        | The camera to control.
+| `sensitivity`           | no        | The sensitivity to set, a value between 1 (low sensitivity) and 50 (high sensitivity).
+| `preset`                | yes       | The time schedule preset to set. Presets can be found in the Web UI of the camera.
 
-```bash
-# Download a copy of this repository
-$ wget https://github.com/fwestenberg/reolink_dev/archive/master.zip
+### Service `reolink.set_daynight`
 
-# Unzip the archive
-$ unzip master.zip
+Set the day and night mode parameter of the camera.  
 
-# Move the reolink_dev directory into your custom_components directory in your Home Assistant install
-$ mv reolink_dev-master/custom_components/reolink_dev <home-assistant-install-directory>/config/custom_components/
-```
+| Service data attribute  | Optional  | Description  |
+| :---------------------- | :-------- | :----------- |
+| `entity_id`             | no        | The camera to control.
+| `mode`                  | no        | The day and night mode parameter supports the following values: `AUTO` Auto switch between black & white mode `COLOR` Always record videos in color mode `BLACKANDWHITE` Always record videos in black & white mode.
 
+### Service `reolink.ptz_control`
 
-### HACS install
+Control the PTZ (Pan Tilt Zoom) movement of the camera.
 
-  1. Click on HACS in the Home Assistant menu
-  2. Click on `Integrations`
-  3. Click the top right menu (the three dots)
-  4. Select `Custom repositories`
-  5. Paste the repository URL (`https://github.com/fwestenberg/reolink_dev`) in the dialog box
-  6. Select category `Integration`
-  7. Click `Add`
-  8. Click `Install` on the Reolink IP camera box that has now appeared
+| Service data attribute  | Optional  | Description  |
+| :---------------------- | :-------- | :----------- |
+| `entity_id`             | no        | The camera to control.
+| `command`               | no        | The command to execute. Possibe values are: `AUTO`, `DOWN`, `FOCUSDEC`, `FOCUSINC`, `LEFT`, `LEFTDOWN`, `LEFTUP`, `RIGHT`, `RIGHTDOWN`, `RIGHTUP`, `STOP`, `TOPOS`, `UP`, `ZOOMDEC` and `ZOOMINC`.
+| `preset`                | yes       | In case of the command `TOPOS`, pass the preset ID here. The possible presets are listed as attribute on the camera.
+| `speed`                 | yes       | The speed at which the camera moves. Not applicable for the commands: `STOP` and `AUTO`.
 
+<div class='note'>
+The camera keeps moving until the `STOP` command is passed to the service.
+</div>
 
-## Configuration
+## Camera
 
-1. Add the following to your `configuration.yaml`:
-```yaml
-camera:
-- platform: reolink_dev
-  host: IP_ADDRESS
-  username: admin
-  password: YOUR_PASSWORD
-  name: frontdoor (optional, default Reolink Camera)
-  stream: main or sub (optional, default main)
-  protocol: rtmp or rtsp (optional, default rtmp)
-  channel: NVR camera channel (optional, default 0)
-  scan_interval: 5 (optional, default 30s)
+This integration creates a camera entity, providing a live-stream configurable from the integrations page. In the options menu, the following parameters can be configured:
 
-binary_sensor:
-  platform: template
-  sensors:
-    motion_frontdoor:
-      friendly_name: Camera frontdoor
-      device_class: motion
-      value_template: "{{ is_state('camera.frontdoor', 'motion') }}"
-      delay_off: 
-          seconds: 30
+| Parameter               | Description                                                                                                 |
+| :-------------------    | :---------------------------------------------------------------------------------------------------------- |
+| Stream                  | Switch between Sub or Main camera stream.                                                                   |
+| Protocol                | Switch between the RTMP or RTSP streaming protocol.                                                         |
+| Channel                 | When using a single camera, choose stream 0. When using a NVR, switch between the different camera streams. |
 
-switch:
-  - platform: template
-    switches:
-      camera_frontdoor_email:
-        value_template: "{{ is_state_attr('camera.frontdoor', 'email_enabled', true) }}"
-        turn_on:
-          service: camera.enable_email
-          data:
-            entity_id: camera.frontdoor
-        turn_off:
-          service: camera.disable_email
-          data:
-            entity_id: camera.frontdoor
-        icon_template: >-
-          {% if is_state_attr('camera.frontdoor', 'email_enabled', true) %}
-            mdi:email
-          {% else %}
-            mdi:email-outline
-          {% endif %}
-            
-      camera_frontdoor_ftp:
-        value_template: "{{ is_state_attr('camera.frontdoor', 'ftp_enabled', true) }}"
-        turn_on:
-          service: camera.enable_ftp
-          data:
-            entity_id: camera.frontdoor
-        turn_off:
-          service: camera.disable_ftp
-          data:
-            entity_id: camera.frontdoor
-        icon_template: >-
-          {% if is_state_attr('camera.frontdoor', 'ftp_enabled', true) %}
-            mdi:filmstrip
-          {% else %}
-            mdi:filmstrip-off
-          {% endif %}
-          
-      camera_frontdoor_ir_lights:
-        value_template: "{{ is_state_attr('camera.frontdoor', 'ir_lights_enabled', true) }}"
-        turn_on:
-          service: camera.enable_ir_lights
-          data:
-            entity_id: camera.frontdoor
-        turn_off:
-          service: camera.disable_ir_lights
-          data:
-            entity_id: camera.frontdoor
-        icon_template: >-
-          {% if is_state_attr('camera.frontdoor', 'ir_lights_enabled', true) %}
-            mdi:flashlight
-          {% else %}
-            mdi:flashlight-off
-          {% endif %}
+## Binary Sensor
 
-      camera_frontdoor_motion_detection:
-        value_template: "{{ is_state_attr('camera.frontdoor', 'motion_detection_enabled', true) }}"
-        turn_on:
-          service: camera.enable_motion_detection
-          data:
-            entity_id: camera.frontdoor
-        turn_off:
-          service: camera.disable_motion_detection
-          data:
-            entity_id: camera.frontdoor
-        icon_template: >-
-          {% if is_state_attr('camera.frontdoor', 'motion_detection_enabled', true) %}
-            mdi:motion-sensor
-          {% else %}
-            mdi:motion-sensor-off
-          {% endif %}
-```
-2. Restart Home Assistant.
+When the camera supports motion detection events, a binary sensor is created for real-time motion detection. The time to switch motion detection off can be configured via the options menu, located at the integrations page.
 
+| Parameter               | Description                                                                                                 |
+| :-------------------    | :---------------------------------------------------------------------------------------------------------- |
+| Motion sensor off delay | Control how many seconds it takes (after the last motion detection) for the binary sensor to switch off.    |
 
-## Usage
+## Switch
 
-In your Home Assistant Lovelace, add a new card with the following:
+Depending on the camera, the following switches are created:
 
-```yaml
-type: picture-glance
-title: frontdoor
-camera_image: camera.frontdoor
-entities:
-  - switch.camera_frontdoor_ir_lights
-  - switch.camera_frontdoor_email
-  - switch.camera_frontdoor_ftp
-  - switch.camera_frontdoor_motion_detection
-  - binary_sensor.motion_frontdoor
-```
+This integration creates a camera entity, which can be configured from the integrations page. In the options menu, the following parameters can be configured:
 
-Now you will have a card the looks like this (notice the buttons and motion icon):
-
-![Example Lovelace card](/Lovelace%20Card.PNG?raw=true)
-
+| Switch               | Description |
+| :------------------- | :------------------------------------------------------------ |
+| Email                | Switch email alerts from the camera when motion is detected.  |
+| FTP                  | Switch FTP upload of photo and video when motion is detected. |
+| IR lights            | Switch the infrared lights to auto or off.                    |
+| Record audio         | Record auto or mute. This also implies the live-stream.       |
+| Recording            | Switch recording to the SD card.                              |
 
 ## Unsupported models
+
+The following models are not to be supported:
 
 - B800
 - B400
 - D400
 - E1
 - E1 Pro
-- Battery-powered camera's
-
-
-## Troubleshooting
-
-- If the buttons are not working on the Lovelace card, make sure that the user that you configured in the Reolink camera is an **administrator**.
+- Battery-powered cameras
