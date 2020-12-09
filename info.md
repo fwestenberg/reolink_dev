@@ -11,6 +11,27 @@ A Home Assistant integration for your Reolink security cameras which enables you
 *You already have the latest released version installed.*
 {% endif %}
 
+{% if version_installed.replace("v", "") | float < 0.8  %}
+**New features:**
+- Integration flow
+- Binary sensor for motion events, real time push
+- Switches instead of events
+- Services: SET_SENSITIVITY, SET_DAYNIGHT, PTZ_CONTROL
+- Camera settings can be changed from the options menu
+**Bugfixes:**
+- Motion detection not working (#85)
+- Error that is only fixed by rebooting the camera (#83)
+- Interfering with Blink (#79
+- Infrared switch (#78)
+- url does not include port (#70)
+- HA Requires Reboot if the camera does not respond during start up (#66)
+- Camera on port 82 instead of 80 (#65)
+- PTZ position control (#64)
+- Add availability sensor (#53)
+- Snapshot requires login first (#52)
+- Camera Pan & Tilt (#23)
+{% endif %}
+
 {% if version_installed.replace("v", "") | float < 0.3  %}
 **Bugfix:**  Change duplicate disable_ir_lights to disable_recording.
 {% endif %}
