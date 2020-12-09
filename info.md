@@ -1,6 +1,6 @@
 A Home Assistant integration for your Reolink security cameras which enables you to detect motion, control the IR lights, recording and the sending of emails.
 
-*Configuration guide can be found [here](https://github.com/fwestenberg/reolink/blob/master/README.md).*
+*Configuration guide can be found [here](https://github.com/fwestenberg/reolink_dev/blob/master/README.md).*
 
 
 {% if installed %}
