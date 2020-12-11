@@ -1,0 +1,34 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Diese Kamera ist bereits konfiguriert"
+        },
+        "error": {
+            "cannot_connect": "Verbindung zur Kamera konnte nicht hergestellt werden",
+            "invalid_auth": "Benutzername oder Passwort fehlerhaft",
+            "unknown": "Unerwarteter Fehler"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "host": "Host",
+                    "port": "Port",
+                    "username": "Benutzername",
+                    "password": "Passwort"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "stream": "Stream",
+                    "protocol": "Protokoll",
+                    "channel": "Kanal",
+					"motion_off_delay": "Bewegungssensor Ausschaltverzögerung (Sekunden)"
+                }
+            }
+        }
+    }
+}
