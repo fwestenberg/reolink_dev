@@ -15,6 +15,7 @@ from homeassistant.const import (
     EVENT_HOMEASSISTANT_STOP,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.network import get_url
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .base import ReolinkBase
@@ -56,10 +57,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     base = ReolinkBase(
         hass,
-        entry.data[CONF_HOST],
-        entry.data[CONF_PORT],
-        entry.data[CONF_USERNAME],
-        entry.data[CONF_PASSWORD],
+        entry.data,
+        entry.options
     )
 
     base.sync_functions.append(entry.add_update_listener(update_listener))
@@ -68,7 +67,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
 
     webhook_id = await register_webhook(hass, base.event_id)
-    webhook_url = hass.components.webhook.async_generate_url(webhook_id)
+    webhook_url = "{}{}".format(
+      get_url(hass, prefer_external=False),
+      hass.components.webhook.async_generate_path(webhook_id)
+    )
+
     await base.subscribe(webhook_url)
 
     hass.data[DOMAIN][entry.entry_id] = {BASE: base}
@@ -109,8 +112,8 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
 
     await base.api.update_streaming_options(
         entry.options[CONF_STREAM],
-        entry.options[CONF_PROTOCOL],
-        entry.options[CONF_CHANNEL],
+        'rtmp',  # obsolete
+        base.api._channel  # obsolete
     )
     base.motion_off_delay = entry.options[CONF_MOTION_OFF_DELAY]
 
@@ -170,8 +173,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
     base = hass.data[DOMAIN][entry.entry_id][BASE]
 
-    event_id = f"{EVENT_DATA_RECEIVED}-{base.api.mac_address.replace(':', '')}"
-    await unregister_webhook(base, event_id)
+    await unregister_webhook(hass, base.event_id)
     await base.stop()
 
     unload_ok = all(

@@ -8,7 +8,10 @@ import voluptuous as vol
 from homeassistant.components.camera import SUPPORT_STREAM, Camera
 from homeassistant.components.ffmpeg import DATA_FFMPEG
 from homeassistant.helpers import config_validation as cv, entity_platform
-from homeassistant.helpers.aiohttp_client import async_aiohttp_proxy_stream
+from homeassistant.helpers.aiohttp_client import (
+    async_aiohttp_proxy_web,
+    async_get_clientsession,
+)
 
 from .const import SERVICE_PTZ_CONTROL, SERVICE_SET_DAYNIGHT, SERVICE_SET_SENSITIVITY
 from .entity import ReolinkEntity
@@ -91,12 +94,12 @@ class ReolinkCamera(ReolinkEntity, Camera):
     @property
     def unique_id(self):
         """Return Unique ID string."""
-        return f"reolink_{self._base.api.mac_address}"
+        return f"reolink_camera_{self._base.unique_id}"
 
     @property
     def name(self):
         """Return the name of this camera."""
-        return self._base.api.name
+        return self._base.name
 
     @property
     def ptz_support(self):
@@ -125,19 +128,12 @@ class ReolinkCamera(ReolinkEntity, Camera):
         """Generate an HTTP MJPEG stream from the camera."""
         stream_source = await self.stream_source()
 
-        stream = CameraMjpeg(self._ffmpeg.binary)
-        await stream.open_camera(stream_source)
+        websession = async_get_clientsession(self._hass)
+        stream_coro = websession.get(
+            stream_source, timeout=10
+        )
 
-        try:
-            stream_reader = await stream.get_reader()
-            return await async_aiohttp_proxy_stream(
-                self._hass,
-                request,
-                stream_reader,
-                self._ffmpeg.ffmpeg_stream_content_type,
-            )
-        finally:
-            await stream.close()
+        return await async_aiohttp_proxy_web(self._hass, request, stream_coro)
 
     async def async_camera_image(self):
         """Return a still image response from the camera."""

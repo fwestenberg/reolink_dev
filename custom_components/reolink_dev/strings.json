@@ -8,6 +8,9 @@
               "username": "[%key:common::config_flow::data::username%]",
               "password": "[%key:common::config_flow::data::password%]"
             }
+          },
+          "nvr": {
+            "channel": "Channel"
           }
       },
       "error": {
@@ -24,9 +27,8 @@
         "init": {
           "data": {
             "stream": "Stream",
-            "protocol": "Protocol",
-            "channel": "Channel",
-			"motion_off_delay": "Motion sensor off delay (seconds)"
+            "timeout": "Timeout",
+			      "motion_off_delay": "Motion sensor off delay (seconds)"
           }
         }
       }
