@@ -30,6 +30,9 @@ class ReolinkFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
+    CHANNELS = 1
+    MAC_ADDRESS = None
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
@@ -45,13 +48,12 @@ class ReolinkFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
             try:
                 self.info = await self.validate_input(self.hass, user_input)
-                mac_address = self.info["mac_address"]
 
-                if self.info["channels"] > 1:
-                    return await self.async_step_nvr(self.info["channels"], mac_address)
+                if self.CHANNELS > 1:
+                    return await self.async_step_nvr()
 
                 self.data["channel"] = 1
-                await self.async_set_unique_id(f"{mac_address}{user_input[CONF_CHANNEL]}")
+                await self.async_set_unique_id(f"{self.MAC_ADDRESS}{user_input[CONF_CHANNEL]}")
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(title=self.info["title"], data=self.data)
 
@@ -76,13 +78,13 @@ class ReolinkFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_nvr(self, channels, mac_address, user_input=None):
+    async def async_step_nvr(self, user_input=None):
+        """Configure a NVR with multiple channels."""
         errors = {}
         if user_input is not None:
             self.data.update(user_input)
 
-            self.base.channel = user_input[CONF_CHANNEL]
-            await self.async_set_unique_id(f"{mac_address}{user_input[CONF_CHANNEL]}")
+            await self.async_set_unique_id(f"{self.MAC_ADDRESS}{user_input[CONF_CHANNEL]}")
             self._abort_if_unique_id_configured()
             return self.async_create_entry(title=self.info["title"], data=self.data)
 
@@ -90,11 +92,16 @@ class ReolinkFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="nvr",
             data_schema=vol.Schema(
                 {
-                    vol.Required("channel"): vol.All(vol.Coerce(int), vol.Range(min=1, max=channels)),
+                    vol.Required("channel"): vol.All(vol.Coerce(int), vol.Range(min=1, max=self.CHANNELS)),
                 }
             ),
             errors=errors,
         )
+
+    async def camera_already_configured(self):
+        """Validate if the camera is already configured."""
+        await self.async_set_unique_id(f"{self.MAC_ADDRESS}{user_input[CONF_CHANNEL]}")
+        self._abort_if_unique_id_configured()
 
     async def validate_input(self, hass: core.HomeAssistant, user_input: dict):
         """Validate the user input allows us to connect."""
@@ -108,9 +115,10 @@ class ReolinkFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             raise CannotConnect
 
         title = base.api.name
-        channels = base.api._device_info["value"]["DevInfo"]["channelNum"]
+        self.CHANNELS = base.api._device_info["value"]["DevInfo"]["channelNum"]
+        self.MAC_ADDRESS = base.api.mac_address
         base.disconnect_api()
-        return {"title": title, "channels": channels, "mac_address": base.api.mac_address}
+        return {"title": title}
 
 
 class ReolinkOptionsFlowHandler(config_entries.OptionsFlow):
@@ -152,6 +160,9 @@ class ReolinkOptionsFlowHandler(config_entries.OptionsFlow):
             ),
         )
 
+
+class AlreadyConfigured(exceptions.HomeAssistantError):
+    """Error to indicate device is already configured."""
 
 class CannotConnect(exceptions.HomeAssistantError):
     """Error to indicate we cannot connect."""
