@@ -69,9 +69,7 @@ class ReolinkBase:
     @property
     def name(self):
         """Create the device name."""
-        if self.channel == 1:
-            return self._api.name
-        return f"{self._api.name}{self.channel}"
+        return self._api.name
 
     @property
     def unique_id(self):
