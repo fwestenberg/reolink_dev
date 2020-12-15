@@ -5,13 +5,21 @@ from homeassistant.const import (
     CONF_HOST,
     CONF_PASSWORD,
     CONF_PORT,
+    CONF_TIMEOUT,
     CONF_USERNAME,
 )
 
 from reolink.camera_api import Api
 from reolink.subscription_manager import Manager
 
-from .const import EVENT_DATA_RECEIVED, CONF_CHANNEL, CONF_MOTION_OFF_DELAY, SESSION_RENEW_THRESHOLD
+from .const import (
+    EVENT_DATA_RECEIVED,
+    CONF_CHANNEL,
+    CONF_MOTION_OFF_DELAY,
+    DEFAULT_CHANNEL,
+    DEFAULT_TIMEOUT,
+    SESSION_RENEW_THRESHOLD,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,7 +36,24 @@ class ReolinkBase:
         self._username = config[CONF_USERNAME]
         self._password = config[CONF_PASSWORD]
 
-        self._api = Api(config[CONF_HOST], config[CONF_PORT], self._username, self._password)
+        if CONF_CHANNEL not in config:
+            self.channel = DEFAULT_CHANNEL
+        else:
+            self.channel = config[CONF_CHANNEL]
+
+        if CONF_TIMEOUT not in config:
+            self._timeout = DEFAULT_TIMEOUT
+        else:
+            self._timeout = config[CONF_TIMEOUT]
+
+        self._api = Api(
+            config[CONF_HOST],
+            config[CONF_PORT],
+            self._username,
+            self._password,
+            channel=self.channel - 1,
+            timeout=self._timeout,
+        )
         self._sman = None
         self._webhook_url = None
         self._hass = hass
@@ -39,12 +64,6 @@ class ReolinkBase:
             self.motion_off_delay = 60
         else:
             self.motion_off_delay = options[CONF_MOTION_OFF_DELAY]
-        
-        if CONF_CHANNEL not in config:
-            self.channel = 1
-        else:
-            self.channel = config[CONF_CHANNEL]
-        self._api._channel = self.channel - 1
 
     @property
     def name(self):
@@ -85,8 +104,7 @@ class ReolinkBase:
         return True
 
     async def update_api(self):
-        """Call the API of the camera device to update the settings and states."""
-        await self._api.get_settings()
+        """Call the API of the camera device to update the states."""
         await self._api.get_states()
 
     async def disconnect_api(self):

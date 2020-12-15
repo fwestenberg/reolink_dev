@@ -98,11 +98,6 @@ class ReolinkFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def camera_already_configured(self):
-        """Validate if the camera is already configured."""
-        await self.async_set_unique_id(f"{self.MAC_ADDRESS}{user_input[CONF_CHANNEL]}")
-        self._abort_if_unique_id_configured()
-
     async def validate_input(self, hass: core.HomeAssistant, user_input: dict):
         """Validate the user input allows us to connect."""
         base = ReolinkBase(
@@ -155,7 +150,7 @@ class ReolinkOptionsFlowHandler(config_entries.OptionsFlow):
                         default=self.config_entry.options.get(
                             CONF_TIMEOUT, DEFAULT_TIMEOUT
                         ),
-                    ): cv.positive_int,
+                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=60)),
                 }
             ),
         )

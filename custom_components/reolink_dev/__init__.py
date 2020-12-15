@@ -107,14 +107,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
-    """Update the configuration at the base entity."""
+    """Update the configuration at the base entity and API."""
     base = hass.data[DOMAIN][entry.entry_id][BASE]
 
-    await base.api.update_streaming_options(
-        entry.options[CONF_STREAM],
-        'rtmp',  # obsolete
-        base.api._channel  # obsolete
-    )
+    await base.api.update_stream(entry.options[CONF_STREAM])
     base.motion_off_delay = entry.options[CONF_MOTION_OFF_DELAY]
 
 

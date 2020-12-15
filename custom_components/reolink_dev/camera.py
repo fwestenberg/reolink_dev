@@ -1,5 +1,6 @@
 """This component provides support for Reolink IP cameras."""
 import asyncio
+from datetime import datetime
 import logging
 
 from haffmpeg.camera import CameraMjpeg
@@ -107,11 +108,18 @@ class ReolinkCamera(ReolinkEntity, Camera):
         return self._base.api.ptz_support
 
     @property
-    def state_attributes(self):
+    def device_state_attributes(self):
         """Return the camera state attributes."""
         attrs = {}
         if self._base.api.ptz_support:
             attrs["ptz_presets"] = self._base.api.ptz_presets
+
+        for key, value in self._daynight_modes.items():
+            if value == self._base.api.daynight_state:
+                attrs["daynight_state"] = key
+
+        if self._base.api.sensitivity_presets:
+            attrs["sensitivity"] = self.get_sensitivity_presets()
 
         return attrs
 
@@ -129,9 +137,7 @@ class ReolinkCamera(ReolinkEntity, Camera):
         stream_source = await self.stream_source()
 
         websession = async_get_clientsession(self._hass)
-        stream_coro = websession.get(
-            stream_source, timeout=10
-        )
+        stream_coro = websession.get(stream_source, timeout=10)
 
         return await async_aiohttp_proxy_web(self._hass, request, stream_coro)
 
@@ -148,6 +154,27 @@ class ReolinkCamera(ReolinkEntity, Camera):
         await self._base.api.set_ptz_command(
             command=self._ptz_commands[command], **kwargs
         )
+
+    def get_sensitivity_presets(self):
+        """Get formatted sensitivity presets."""
+        presets = list()
+        preset = dict()
+
+        for api_preset in self._base.api.sensitivity_presets:
+            preset["id"] = api_preset["id"]
+            preset["sensitivity"] = api_preset["sensitivity"]
+
+            time_string = f'{api_preset["beginHour"]}:{api_preset["beginMin"]}'
+            begin = datetime.strptime(time_string, "%H:%M")
+            preset["begin"] = begin.strftime("%H:%M")
+
+            time_string = f'{api_preset["endHour"]}:{api_preset["endMin"]}'
+            end = datetime.strptime(time_string, "%H:%M")
+            preset["end"] = end.strftime("%H:%M")
+
+            presets.append(preset.copy())
+
+        return presets
 
     async def set_sensitivity(self, sensitivity, **kwargs):
         """Set the sensitivity to the camera."""
