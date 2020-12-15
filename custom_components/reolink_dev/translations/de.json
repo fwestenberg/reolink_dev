@@ -16,6 +16,11 @@
                     "username": "Benutzername",
                     "password": "Passwort"
                 }
+            },
+            "nvr": {
+                "data": {
+                    "channel": "Kanal"
+                }
             }
         }
     },
@@ -24,9 +29,8 @@
             "init": {
                 "data": {
                     "stream": "Stream",
-                    "protocol": "Protokoll",
-                    "channel": "Kanal",
-		    "motion_off_delay": "Bewegungssensor Ausschaltverzögerung (Sekunden)"
+                    "timeout": "Timeout (Sekunden)",
+					          "motion_off_delay": "Bewegungssensor Ausschaltverzögerung (Sekunden)"
                 }
             }
         }
