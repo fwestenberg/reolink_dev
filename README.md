@@ -88,9 +88,9 @@ This integration creates a camera entity, which can be configured from the integ
 
 The following models are not to be supported:
 
-- B800: Only with NVR
-- B400: Only with NVR
-- D400: Only with NVR
 - E1
 - E1 Pro
 - Battery-powered cameras
+- B800: Only with NVR
+- B400: Only with NVR
+- D400: Only with NVR
