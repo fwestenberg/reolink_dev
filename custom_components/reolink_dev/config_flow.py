@@ -97,7 +97,7 @@ class ReolinkFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="nvr",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_CHANNEL): vol.All(vol.Coerce(int), vol.Range(min=1, max=self.CHANNELS)),
+                    vol.Required(CONF_CHANNEL): vol.All(vol.Coerce(int), vol.Range(min=1, max=self.channels)),
                 }
             ),
             errors=errors,
