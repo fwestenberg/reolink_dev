@@ -17,6 +17,7 @@ from .const import (
     CONF_CHANNEL,
     CONF_MOTION_OFF_DELAY,
     DEFAULT_CHANNEL,
+    DEFAULT_MOTION_OFF_DELAY,
     DEFAULT_TIMEOUT,
     SESSION_RENEW_THRESHOLD,
 )
@@ -61,7 +62,7 @@ class ReolinkBase:
         self.motion_detection_state = True
 
         if CONF_MOTION_OFF_DELAY not in options:
-            self.motion_off_delay = 60
+            self.motion_off_delay = DEFAULT_MOTION_OFF_DELAY
         else:
             self.motion_off_delay = options[CONF_MOTION_OFF_DELAY]
 
@@ -84,6 +85,11 @@ class ReolinkBase:
         return f"{EVENT_DATA_RECEIVED}-{event_id}-{self.channel}"
 
     @property
+    def timeout(self):
+        """Return the timeout setting."""
+        return self._timeout
+
+    @property
     def api(self):
         """Return the API object."""
         return self._api
@@ -103,9 +109,23 @@ class ReolinkBase:
         await self._api.is_admin()
         return True
 
-    async def update_api(self):
+    async def set_timeout(self, timeout):
+        """Set the API timeout."""
+        self._timeout = timeout
+        await self._api.set_timeout(timeout)
+
+    async def set_channel(self, channel):
+        """Set the API channel."""
+        self._channel = channel
+        await self._api.set_channel(channel - 1)
+
+    async def update_states(self):
         """Call the API of the camera device to update the states."""
         await self._api.get_states()
+
+    async def update_settings(self):
+        """Call the API of the camera device to update the settings."""
+        await self._api.get_settings()
 
     async def disconnect_api(self):
         """Disconnect from the API, so the connection will be released."""

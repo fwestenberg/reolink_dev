@@ -11,6 +11,7 @@ from homeassistant.const import (
     CONF_HOST,
     CONF_PASSWORD,
     CONF_PORT,
+    CONF_TIMEOUT,
     CONF_USERNAME,
     EVENT_HOMEASSISTANT_STOP,
 )
@@ -79,9 +80,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def async_update_data():
         """Perform the actual updates."""
 
-        async with async_timeout.timeout(10):
+        async with async_timeout.timeout(base.timeout):
             await base.renew()
-            await base.update_api()
+            await base.update_states()
 
     coordinator = DataUpdateCoordinator(
         hass,
@@ -109,9 +110,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     """Update the configuration at the base entity and API."""
     base = hass.data[DOMAIN][entry.entry_id][BASE]
-
-    await base.api.update_stream(entry.options[CONF_STREAM])
+    
     base.motion_off_delay = entry.options[CONF_MOTION_OFF_DELAY]
+    await base.set_timeout(entry.options[CONF_TIMEOUT])
+    await base.api.set_stream(entry.options[CONF_STREAM])
 
 
 async def handle_webhook(hass, webhook_id, request):
