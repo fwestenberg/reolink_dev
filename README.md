@@ -14,6 +14,10 @@ The `reolink` implementation allows you to integrate your [Reolink](https://www.
 
 You can configure the Reolink integration by going to the integrations page inside the configuration panel.
 
+## Installation
+In your Homa Assistant installation go to: Configuration > Integrations, click the button Add Integration > Reolink IP camera
+Enter the details for your camera. The camera will now be available as an entity.
+
 ## Services
 
 The Reolink integration supports all default camera [services](https://www.home-assistant.io/integrations/camera/#services) and additionally provides the following services:
