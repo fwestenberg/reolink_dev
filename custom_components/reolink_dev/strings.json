@@ -10,7 +10,9 @@
             }
           },
           "nvr": {
-            "channel": "Channel"
+            "data": {
+              "channel": "Channel"
+            }
           }
       },
       "error": {
