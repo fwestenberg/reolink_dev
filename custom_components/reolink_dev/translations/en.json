@@ -28,6 +28,7 @@
         "step": {
             "init": {
                 "data": {
+                    "protocol": "Protocol",
                     "stream": "Stream",
                     "timeout": "Timeout (seconds)",
 					"motion_off_delay": "Motion sensor off delay (seconds)"

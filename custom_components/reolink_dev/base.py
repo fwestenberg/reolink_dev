@@ -16,8 +16,12 @@ from .const import (
     EVENT_DATA_RECEIVED,
     CONF_CHANNEL,
     CONF_MOTION_OFF_DELAY,
+    CONF_PROTOCOL,
+    CONF_STREAM,
     DEFAULT_CHANNEL,
     DEFAULT_MOTION_OFF_DELAY,
+    DEFAULT_PROTOCOL,
+    DEFAULT_STREAM,
     DEFAULT_TIMEOUT,
     SESSION_RENEW_THRESHOLD,
 )
@@ -38,21 +42,33 @@ class ReolinkBase:
         self._password = config[CONF_PASSWORD]
 
         if CONF_CHANNEL not in config:
-            self.channel = DEFAULT_CHANNEL
+            self._channel = DEFAULT_CHANNEL
         else:
-            self.channel = config[CONF_CHANNEL]
+            self._channel = config[CONF_CHANNEL]
 
-        if CONF_TIMEOUT not in config:
+        if CONF_TIMEOUT not in options:
             self._timeout = DEFAULT_TIMEOUT
         else:
-            self._timeout = config[CONF_TIMEOUT]
+            self._timeout = options[CONF_TIMEOUT]
+
+        if CONF_STREAM not in options:
+            self._stream = DEFAULT_STREAM
+        else:
+            self._stream = options[CONF_STREAM]
+
+        if CONF_PROTOCOL not in options:
+            self._protocol= DEFAULT_PROTOCOL
+        else:
+            self._protocol = options[CONF_PROTOCOL]
 
         self._api = Api(
             config[CONF_HOST],
             config[CONF_PORT],
             self._username,
             self._password,
-            channel=self.channel - 1,
+            channel=self._channel - 1,
+            stream=self._stream,
+            protocol=self._protocol,
             timeout=self._timeout,
         )
         self._sman = None
@@ -80,12 +96,17 @@ class ReolinkBase:
     def event_id(self):
         """Create the event ID string."""
         event_id = self._api.mac_address.replace(":", "")
-        return f"{EVENT_DATA_RECEIVED}-{event_id}-{self.channel}"
+        return f"{EVENT_DATA_RECEIVED}-{event_id}"
 
     @property
     def timeout(self):
         """Return the timeout setting."""
         return self._timeout
+
+    @property
+    def channel(self):
+        """Return the channel setting."""
+        return self._channel
 
     @property
     def api(self):
@@ -107,15 +128,25 @@ class ReolinkBase:
         await self._api.is_admin()
         return True
 
-    async def set_timeout(self, timeout):
-        """Set the API timeout."""
-        self._timeout = timeout
-        await self._api.set_timeout(timeout)
-
     async def set_channel(self, channel):
         """Set the API channel."""
         self._channel = channel
         await self._api.set_channel(channel - 1)
+
+    async def set_protocol(self, protocol):
+        """Set the protocol."""
+        self._protocol = protocol
+        await self._api.set_protocol(protocol)
+
+    async def set_stream(self, stream):
+        """Set the stream."""
+        self._stream = stream
+        await self._api.set_stream(stream)
+
+    async def set_timeout(self, timeout):
+        """Set the API timeout."""
+        self._timeout = timeout
+        await self._api.set_timeout(timeout)
 
     async def update_states(self):
         """Call the API of the camera device to update the states."""
