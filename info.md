@@ -11,6 +11,17 @@ A Home Assistant integration for your Reolink security cameras which enables you
 *You already have the latest released version installed.*
 {% endif %}
 
+{% if version_installed.replace("v", "") | float < 0.10  %}
+**New features:**
+- RTSP support from options menu
+
+**Bug fixes:**
+- Change logging to debug for most of the errors
+- Truncate password at 31 characters (#104)
+- Improved exception handling
+- Increased default timeout (30s default)
+- Restore options after reboot
+
 {% if version_installed.replace("v", "") | float < 0.8  %}
 **New features:**
 - Integration flow
