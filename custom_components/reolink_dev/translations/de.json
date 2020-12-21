@@ -11,7 +11,7 @@
         "step": {
             "user": {
                 "data": {
-                    "host": "Kamera",
+                    "host": "Host",
                     "port": "Port",
                     "username": "Benutzername",
                     "password": "Passwort"
@@ -28,9 +28,10 @@
         "step": {
             "init": {
                 "data": {
+                    "protocol": "Protokoll",
                     "stream": "Stream",
                     "timeout": "Timeout (Sekunden)",
-					          "motion_off_delay": "Bewegungssensor Ausschaltverzögerung (Sekunden)"
+					"motion_off_delay": "Bewegungssensor Ausschaltverzögerung (Sekunden)"
                 }
             }
         }

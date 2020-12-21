@@ -16,6 +16,7 @@ from .const import (
     CONF_PROTOCOL,
     CONF_STREAM,
     DEFAULT_MOTION_OFF_DELAY,
+    DEFAULT_PROTOCOL,
     DEFAULT_STREAM,
     DEFAULT_TIMEOUT,
     DOMAIN,
@@ -97,7 +98,7 @@ class ReolinkFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="nvr",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_CHANNEL): vol.All(vol.Coerce(int), vol.Range(min=1, max=self.channels)),
+                    vol.Required("channel"): vol.All(vol.Coerce(int), vol.Range(min=1, max=self.channels)),
                 }
             ),
             errors=errors,
@@ -143,6 +144,12 @@ class ReolinkOptionsFlowHandler(config_entries.OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
+                    vol.Required(CONF_PROTOCOL, 
+                    default=self.config_entry.options.get(
+                            CONF_PROTOCOL, DEFAULT_PROTOCOL
+                        ),): vol.In(
+                        ["rtmp", "rtsp"]
+                    ),
                     vol.Required(CONF_STREAM, 
                     default=self.config_entry.options.get(
                             CONF_STREAM, DEFAULT_STREAM
