@@ -183,6 +183,9 @@ class ReolinkBase:
 
     async def renew(self):
         """Renew the subscription of the motion events (lease time is set to 15 minutes)."""
+        if not self._sman:
+            return
+
         if self._sman.renewtimer <= SESSION_RENEW_THRESHOLD:
             if not await self._sman.renew():
                 _LOGGER.error(

@@ -68,12 +68,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
 
     webhook_id = await register_webhook(hass, base.event_id)
-    webhook_url = "{}{}".format(
-      get_url(hass, prefer_external=False),
-      hass.components.webhook.async_generate_path(webhook_id)
-    )
-
-    await base.subscribe(webhook_url)
+    if webhook_id:
+        webhook_url = "{}{}".format(
+            get_url(hass, prefer_external=False),
+            hass.components.webhook.async_generate_path(webhook_id)
+        )
+        await base.subscribe(webhook_url)
 
     hass.data[DOMAIN][entry.entry_id] = {BASE: base}
 
@@ -159,7 +159,7 @@ async def register_webhook(hass, event_id):
         _LOGGER.debug("Webhook: %s", webhook_id)
         _LOGGER.debug(info)
         if info["name"] == event_id:
-            return webhook_id
+            return
 
     webhook_id = hass.components.webhook.async_generate_id()
     hass.components.webhook.async_register(DOMAIN, event_id, webhook_id, handle_webhook)
