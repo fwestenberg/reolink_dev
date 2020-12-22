@@ -70,7 +70,7 @@ This integration creates a camera entity, providing a live-stream configurable f
 
 ## Binary Sensor
 
-When the camera supports motion detection events, a binary sensor is created for real-time motion detection. The time to switch motion detection off can be configured via the options menu, located at the integrations page. Please notice: for using the motion detection, your Homa Assistant should be reachable (within you local network) over HTTP (not HTTPS).
+When the camera supports motion detection events, a binary sensor is created for real-time motion detection. The time to switch motion detection off can be configured via the options menu, located at the integrations page. Please notice: for using the motion detection, your Homa Assistant should be reachable (within you local network) over http (not https).
 
 | Parameter               | Description                                                                                                 |
 | :-------------------    | :---------------------------------------------------------------------------------------------------------- |
