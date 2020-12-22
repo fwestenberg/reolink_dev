@@ -64,7 +64,8 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
     @property
     def available(self):
         """Return True if entity is available."""
-        return self._base.sman.renewtimer > 0
+        # return self._base.sman.renewtimer > 0
+        return True
 
     @property
     def device_class(self):

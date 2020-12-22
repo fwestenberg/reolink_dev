@@ -196,7 +196,8 @@ class ReolinkBase:
 
     async def unsubscribe(self):
         """Unsubscribe from the motion events."""
-        return await self._sman.unsubscribe()
+        if self._sman:
+            return await self._sman.unsubscribe()
 
     async def stop(self):
         """Disconnect the APi and unsubscribe."""
