@@ -90,7 +90,8 @@ class ReolinkBase:
     @property
     def unique_id(self):
         """Create the unique ID, base for all entities."""
-        return f"{self._api.mac_address}{self.channel}"
+        id = self._api.mac_address.replace(":", "")
+        return f"{id}-{self.channel}"
 
     @property
     def event_id(self):
