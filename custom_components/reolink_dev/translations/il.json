@@ -1,0 +1,39 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "כבר מקונפג"
+        },
+        "error": {
+            "cannot_connect": "אין אפשרות להתחבר",
+            "invalid_auth": "הרשאה לא נכונה",
+            "unknown": "בעיה לא ידועה"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "host": "שרת",
+                    "port": "פורט",
+                    "username": "שם משתמש",
+                    "password": "סיסמא"
+                }
+            },
+            "nvr": {
+                "data": {
+                    "channel": "ערוץ"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "protocol": "פרוטוקול",
+                    "stream": "סטרים",
+                    "timeout": "טיימאאוט",
+					"motion_off_delay": "השהיית כבוי תזוזה"
+                }
+            }
+        }
+    }
+}
