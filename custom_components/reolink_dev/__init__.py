@@ -68,12 +68,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
 
     webhook_id = await register_webhook(hass, base.event_id)
-    if webhook_id:
-        webhook_url = "{}{}".format(
-            get_url(hass, prefer_external=False),
-            hass.components.webhook.async_generate_path(webhook_id)
-        )
-        await base.subscribe(webhook_url)
+    webhook_url = "{}{}".format(
+      get_url(hass, prefer_external=False),
+      hass.components.webhook.async_generate_path(webhook_id)
+    )
+
+    await base.subscribe(webhook_url)
 
     hass.data[DOMAIN][entry.entry_id] = {BASE: base}
 
@@ -137,11 +137,11 @@ async def handle_webhook(hass, webhook_id, request):
         _LOGGER.debug("Webhook triggered with unknown payload")
         return
 
-    handlers = hass.data["webhook"]
-    for wid, info in handlers.items():
-        if wid == webhook_id:
-            event_id = info["name"]
-            hass.bus.async_fire(event_id, {"IsMotion": is_motion})
+    event_id = await get_event_by_webhook(hass, webhook_id)
+    if not event_id:
+        _LOGGER.error("Webhook triggered without event to fire")
+
+    hass.bus.async_fire(event_id, {"IsMotion": is_motion})
 
 
 async def register_webhook(hass, event_id):
@@ -152,29 +152,55 @@ async def register_webhook(hass, event_id):
     the binary sensor, in case of NVR the binary sensor also figures out what channel has
     the motion. So the flow is: camera onvif event->webhook->HA event->binary sensor.
     """
-    handlers = hass.data["webhook"]
     _LOGGER.debug("Registering webhook for event ID %s", event_id)
 
-    for webhook_id, info in handlers.items():
-        _LOGGER.debug("Webhook: %s", webhook_id)
-        _LOGGER.debug(info)
-        if info["name"] == event_id:
-            return
+    webhook_id = await get_webhook_by_event(hass, event_id)
 
-    webhook_id = hass.components.webhook.async_generate_id()
-    hass.components.webhook.async_register(DOMAIN, event_id, webhook_id, handle_webhook)
+    if not webhook_id:
+        webhook_id = hass.components.webhook.async_generate_id()
+        hass.components.webhook.async_register(DOMAIN, event_id, webhook_id, handle_webhook)
 
     return webhook_id
 
 
 async def unregister_webhook(hass: HomeAssistant, event_id):
     """Unregister the webhook for motion events."""
-    handlers = hass.data["webhook"]
+    webhook_id = await get_webhook_by_event(hass, event_id)
 
-    for webhook_id, info in handlers.items():  # ToDo: check other NVR streams still use this 
+    # ToDo: check other NVR streams still use this 
+    if not webhook_id:
+        _LOGGER.debug("No webhook found for event ID %s to unregister", event_id)
+        return
+
+    _LOGGER.debug("Unregistering webhook %s", webhook_id)
+    hass.components.webhook.async_unregister(webhook_id)
+
+
+async def get_webhook_by_event(hass: HomeAssistant, event_id):
+    """Find the webhook_id by the event_id."""
+    try:
+        handlers = hass.data["webhook"]
+    except KeyError:
+        return
+
+    for wid, info in handlers.items():  # ToDo: check other NVR streams still use this
+        _LOGGER.debug("Webhook: %s", wid)
+        _LOGGER.debug(info)
         if info["name"] == event_id:
-            _LOGGER.info("Unregistering webhook %s", info.name)
-            hass.components.webhook.async_unregister(webhook_id)
+            return wid
+
+
+async def get_event_by_webhook(hass: HomeAssistant, webhook_id):
+    """Find the event_id by the webhook_id."""
+    try:
+        handlers = hass.data["webhook"]
+    except KeyError:
+        return
+
+    for wid, info in handlers.items():
+        if wid == webhook_id:
+            event_id = info["name"]
+            return event_id
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
