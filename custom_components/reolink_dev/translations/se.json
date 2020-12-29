@@ -1,0 +1,39 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Denna kamera är redan konfiguerad"
+        },
+        "error": {
+            "cannot_connect": "Misslyckades med att ansluta till kameran",
+            "invalid_auth": "Fel användarnamn eller lösenord",
+            "unknown": "Oförväntat fel"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "host": "Host",
+                    "port": "Port",
+                    "username": "Användarnamn",
+                    "password": "Lösenord"
+                }
+            },
+            "nvr": {
+                "data": {
+                    "channel": "Kanal"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "protocol": "Protokoll",
+                    "stream": "Ström",
+                    "timeout": "Timeout (sekunder)",
+					"motion_off_delay": "Rörelsesensor avstängningfördröjning (sekunder)"
+                }
+            }
+        }
+    }
+}
