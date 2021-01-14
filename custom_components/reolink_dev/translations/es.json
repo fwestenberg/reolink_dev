@@ -1,0 +1,39 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Esta cámara ya ha sido configurada"
+        },
+        "error": {
+            "cannot_connect": "No se pudo conectar con la cámara",
+            "invalid_auth": "Nombre de usuario o contraseña incorrecta",
+            "unknown": "Error inesperado"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "host": "Dirección",
+                    "port": "Puerto",
+                    "username": "Usuario",
+                    "password": "Contraseña"
+                }
+            },
+            "nvr": {
+                "data": {
+                    "channel": "Canal"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "protocol": "Protocolo",
+                    "stream": "Transferencia",
+                    "timeout": "Tiempo fuera (segundos)",
+					"motion_off_delay": "Sensor de movimiento apagado retardo (segundos)"
+                }
+            }
+        }
+    }
+}
