@@ -15,6 +15,9 @@ The `reolink` implementation allows you to integrate your [Reolink](https://www.
 You can configure the Reolink integration by going to the integrations page inside the configuration panel.
 
 ## Installation
+To install this repository using HACS, please follow [this](https://hacs.xyz/docs/faq/custom_repositories) guide.
+It can also be installed manually, this requires some knowledge I will not explain here.
+
 In your Home Assistant installation go to: Configuration > Integrations, click the button Add Integration > Reolink IP camera
 Enter the details for your camera. The camera will now be available as an entity.
 
