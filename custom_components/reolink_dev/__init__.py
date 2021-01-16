@@ -118,7 +118,7 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
     base = hass.data[DOMAIN][entry.entry_id][BASE]
-    push = hass.data[DOMAIN][entry.entry_id][base.push_manager]
+    push = hass.data[DOMAIN][base.push_manager]
 
     keep_subscription = False
     for entry_id in hass.data[DOMAIN]:
@@ -135,6 +135,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     if not keep_subscription:
         push.unsubscribe()
+        hass.data[DOMAIN].pop(base.push_manager)
 
     await base.stop()
 
