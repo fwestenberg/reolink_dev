@@ -17,9 +17,10 @@ You can configure the Reolink integration by going to the integrations page insi
 ## Installation
 To install this repository using HACS, please follow [this](https://hacs.xyz/docs/faq/custom_repositories) guide.
 It can also be installed manually, this requires some knowledge I will not explain here.
+Don't forget to reboot and clear your browser cache before proceeding to the next step.
 
 In your Home Assistant installation go to: Configuration > Integrations, click the button Add Integration > Reolink IP camera
-Enter the details for your camera. The camera will now be available as an entity.
+Enter the details for your camera. The camera and other sensors will now be available as an entity. 
 
 For the motion detection to work, Home Assistant must be reachable via http from your local network. So when using https internally, motion detection will not work at this moment.
 
