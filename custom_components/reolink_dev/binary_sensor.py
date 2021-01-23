@@ -81,6 +81,7 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
         """Handle incoming event for motion detection and availability."""
         try:
             self._available = event.data["available"]
+            return
         except KeyError:
             pass
 
