@@ -248,11 +248,7 @@ class ReolinkPush:
     async def set_available(self, available: bool):
         """Set the availability state to the base object."""
         event_id = await get_event_by_webhook(self._hass, self._webhook_id)
-
-        for entry_id in self._hass.data[DOMAIN]:
-            base_entry = self._hass.data[DOMAIN][entry_id][BASE]
-            if base_entry.event_id == event_id:
-                base_entry.motion_detection_state = available
+        self._hass.bus.async_fire(event_id, {"available": available})
 
     async def unsubscribe(self):
         """Unsubscribe from the motion events."""
@@ -291,7 +287,7 @@ async def handle_webhook(hass, webhook_id, request):
     if not event_id:
         _LOGGER.error("Webhook triggered without event to fire")
 
-    hass.bus.async_fire(event_id, {"IsMotion": is_motion})
+    hass.bus.async_fire(event_id, {"motion": is_motion})
 
 
 async def get_webhook_by_event(hass: HomeAssistant, event_id):
