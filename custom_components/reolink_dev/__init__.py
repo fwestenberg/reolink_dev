@@ -134,7 +134,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
             break
 
     if not keep_subscription:
-        push.unsubscribe()
+        await push.unsubscribe()
         hass.data[DOMAIN].pop(base.push_manager)
 
     await base.stop()
