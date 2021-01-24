@@ -267,6 +267,25 @@ class ReolinkPush:
         _LOGGER.debug("Unregistering webhook %s", self._webhook_id)
         self._hass.components.webhook.async_unregister(self._webhook_id)
 
+    async def count_members(self):
+        """Count the number of camera's using this push manager."""
+        members = 0
+        for entry_id in self._hass.data[DOMAIN]:
+            _LOGGER.debug("Got data entry: %s", entry_id)
+
+            if PUSH_MANAGER in entry_id:
+                continue  # Count config entries only
+
+            try:
+                base = self._hass.data[DOMAIN][entry_id][BASE]
+                if base.event_id == self._event_id:
+                    members += 1
+            except AttributeError:
+                pass
+            except KeyError: 
+                pass
+        _LOGGER.debug("Found %d listeners for event %s", members, self._event_id)
+        return members
 
 async def handle_webhook(hass, webhook_id, request):
     """Handle incoming webhook from Reolink for inbound messages and calls."""
@@ -302,7 +321,7 @@ async def get_webhook_by_event(hass: HomeAssistant, event_id):
     except KeyError:
         return
 
-    for wid, info in handlers.items():  # ToDo: check other NVR streams still use this
+    for wid, info in handlers.items():
         _LOGGER.debug("Webhook: %s", wid)
         _LOGGER.debug(info)
         if info["name"] == event_id:
