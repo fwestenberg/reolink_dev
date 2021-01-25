@@ -40,9 +40,7 @@ $ mv reolink-master/custom_components/reolink_dev <home-assistant-install-direct
   8. Click `Install` on the Reolink IP camera box that has now appeared
   
 
-<div class='note'>
-After executing one of the above installation methods, restart Home Assistant. Also clear your browser cache before proceeding to the next step, as the integration may not be visible otherwise.
-</div>
+> :warning: **After executing one of the above installation methods, restart Home Assistant. Also clear your browser cache before proceeding to the next step, as the integration may not be visible otherwise.**
 
 
 In your Home Assistant installation go to: Configuration > Integrations, click the button Add Integration > Reolink IP camera
@@ -84,9 +82,7 @@ Control the PTZ (Pan Tilt Zoom) movement of the camera.
 | `preset`                | yes       | In case of the command `TOPOS`, pass the preset ID here. The possible presets are listed as attribute on the camera.
 | `speed`                 | yes       | The speed at which the camera moves. Not applicable for the commands: `STOP` and `AUTO`.
 
-<div class='note'>
-The camera keeps moving until the `STOP` command is passed to the service.
-</div>
+**The camera keeps moving until the `STOP` command is passed to the service.**
 
 ## Camera
 
