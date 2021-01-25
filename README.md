@@ -40,8 +40,10 @@ $ mv reolink-master/custom_components/reolink_dev <home-assistant-install-direct
   8. Click `Install` on the Reolink IP camera box that has now appeared
   
 
+<div class='note'>
+After executing one of the above installation methods, restart Home Assistant. Also clear your browser cache before proceeding to the next step, as the integration may not be visible otherwise.
+</div>
 
-Don't forget to reboot and clear your browser cache before proceeding to the next step.
 
 In your Home Assistant installation go to: Configuration > Integrations, click the button Add Integration > Reolink IP camera
 Enter the details for your camera. The camera and other sensors will now be available as an entity. 
