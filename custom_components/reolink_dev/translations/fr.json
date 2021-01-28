@@ -1,0 +1,39 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Cette caméra est déjà configurée"
+        },
+        "error": {
+            "cannot_connect": "Impossible de se connecter à la caméra",
+            "invalid_auth": "Mauvais nom d'utilisateur et/ou mot de passe",
+            "unknown": "Erreur inconnue"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "host": "Hôte",
+                    "port": "Port",
+                    "username": "Nom d'utilisateur",
+                    "password": "Mot de passe"
+                }
+            },
+            "nvr": {
+                "data": {
+                    "channel": "Chaîne"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "protocol": "Protocole",
+                    "stream": "Flux",
+                    "timeout": "Temporisation (en secondes)",
+					"motion_off_delay": "Délai de désactivation du capteur de mouvements (en secondes)"
+                }
+            }
+        }
+    }
+}
