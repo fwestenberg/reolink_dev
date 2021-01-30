@@ -34,7 +34,7 @@ $ mv reolink-master/custom_components/reolink_dev <home-assistant-install-direct
   2. Click on `Integrations`
   3. Click the top right menu (the three dots)
   4. Select `Custom repositories`
-  5. Paste the repository URL (`https://github.com/fwestenberg/reolink`) in the dialog box
+  5. Paste the repository URL (`https://github.com/fwestenberg/reolink_dev`) in the dialog box
   6. Select category `Integration`
   7. Click `Add`
   8. Click `Install` on the Reolink IP camera box that has now appeared
