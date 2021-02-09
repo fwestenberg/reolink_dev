@@ -15,9 +15,11 @@ from .const import (
     CONF_MOTION_OFF_DELAY,
     CONF_PROTOCOL,
     CONF_STREAM,
+    CONF_STREAM_FORMAT,
     DEFAULT_MOTION_OFF_DELAY,
     DEFAULT_PROTOCOL,
     DEFAULT_STREAM,
+    DEFAULT_STREAM_FORMAT,
     DEFAULT_TIMEOUT,
     DOMAIN,
 )
@@ -156,6 +158,13 @@ class ReolinkOptionsFlowHandler(config_entries.OptionsFlow):
                         ),): vol.In(
                         ["main", "sub"]
                     ),
+                    vol.Required(CONF_STREAM_FORMAT, 
+                    default=self.config_entry.options.get(
+                            CONF_STREAM_FORMAT, DEFAULT_STREAM_FORMAT
+                        ),): vol.In(
+                        ["h264", "h265"]
+                    ),
+
                     vol.Required(
                         CONF_MOTION_OFF_DELAY,
                         default=self.config_entry.options.get(
