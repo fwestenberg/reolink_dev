@@ -12,6 +12,7 @@ CONF_STREAM = "stream"
 CONF_STREAM_FORMAT = "stream_format"
 CONF_PROTOCOL = "protocol"
 CONF_CHANNEL = "channel"
+CONF_STREAM_FORMAT = "stream_format"
 CONF_MOTION_OFF_DELAY = "motion_off_delay"
 
 DEFAULT_CHANNEL = 1
