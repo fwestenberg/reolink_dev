@@ -84,6 +84,7 @@ class ReolinkBase:
             self._password,
             channel=self._channel - 1,
             stream=self._stream,
+            stream_format=self._stream_format,
             protocol=self._protocol,
             timeout=self._timeout,
         )
