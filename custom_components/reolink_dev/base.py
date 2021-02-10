@@ -68,9 +68,9 @@ class ReolinkBase:
             self._stream = options[CONF_STREAM]
 
         if CONF_STREAM_FORMAT not in options:
-            self._stream = DEFAULT_STREAM_FORMAT
+            self._stream_format = DEFAULT_STREAM_FORMAT
         else:
-            self._stream = options[CONF_STREAM_FORMAT]
+            self._stream_format = options[CONF_STREAM_FORMAT]
 
         if CONF_PROTOCOL not in options:
             self._protocol = DEFAULT_PROTOCOL
