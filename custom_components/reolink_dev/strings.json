@@ -30,8 +30,9 @@
           "data": {
             "protocol": "Protocol",
             "stream": "Stream",
+            "stream_format": "Stream format",
             "timeout": "Timeout",
-			      "motion_off_delay": "Motion sensor off delay (seconds)"
+	    "motion_off_delay": "Motion sensor off delay (seconds)"
           }
         }
       }
