@@ -250,6 +250,8 @@ class ReolinkPush:
                 await self._sman.subscribe(self._webhook_url)
             else:
                 await self.set_available(True)
+        else:
+            await self.set_available(True)
 
     async def set_available(self, available: bool):
         """Set the availability state to the base object."""
