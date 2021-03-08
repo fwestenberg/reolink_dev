@@ -1,14 +1,13 @@
 """Reolink Camera Media Source Implementation."""
-from asyncio import events
 from os import environ
 from re import split
-import homeassistant
+
 from homeassistant.helpers.config_validation import datetime
 from custom_components.reolink_dev.base import ReolinkBase
 import homeassistant.util.dt as dt_utils
 import datetime as dt
 import logging
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 from . import typings
 
@@ -36,7 +35,8 @@ from homeassistant.components.stream.const import FORMAT_CONTENT_TYPE, OUTPUT_FO
 from .const import BASE, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-VOD_MIME_TYPE = "video/mp4"
+# MIME_TYPE = "rtmp/mp4"
+# MIME_TYPE = "video/mp4"
 MIME_TYPE = "application/x-mpegURL"
 
 NAME = "Reolink IP Camera"
@@ -70,10 +70,17 @@ class ReolinkSource(MediaSource):
         base: ReolinkBase = self.hass.data[DOMAIN][camera_id][BASE]
         url = await base.api.get_vod_source(file)
         _LOGGER.debug("Load VOD %s", url)
-        # stream = create_stream(self.hass, url)
-        # stream.add_provider(VOD_MIME_TYPE)
-        # url = stream.endpoint_url(VOD_MIME_TYPE)
-        # _LOGGER.debug("Proxy %s", url)
+        stream = create_stream(self.hass, url)
+        stream.add_provider("hls", timeout=600)
+        url: str = stream.endpoint_url("hls")
+        """
+        the media browser seems to have a problem with the master_playlist
+        ( it does not load the referenced playlist ) so we will just
+        force the reference playlist instead, this seems to work
+        though technically wrong
+         """
+        url = url.replace("master_", "")
+        _LOGGER.debug("Proxy %s", url)
         return PlayMedia(url, MIME_TYPE)
 
     async def _async_browse_media2(
