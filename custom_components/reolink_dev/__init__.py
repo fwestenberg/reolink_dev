@@ -23,6 +23,7 @@ from .const import (
     BASE,
     CONF_CHANNEL,
     CONF_MOTION_OFF_DELAY,
+    CONF_PLAYBACK_MONTHS,
     CONF_PROTOCOL,
     CONF_STREAM,
     COORDINATOR,
@@ -56,11 +57,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})
 
-    base = ReolinkBase(
-        hass,
-        entry.data,
-        entry.options
-    )
+    base = ReolinkBase(hass, entry.data, entry.options)
     base.sync_functions.append(entry.add_update_listener(update_listener))
 
     if not await base.connect_api():
@@ -71,7 +68,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Get a push manager, there should be one push manager per mac address"""
         push = hass.data[DOMAIN][base.push_manager]
     except KeyError:
-        push = ReolinkPush(hass, base.api.host, base.api.onvif_port, entry.data[CONF_USERNAME], entry.data[CONF_PASSWORD])
+        push = ReolinkPush(
+            hass,
+            base.api.host,
+            base.api.onvif_port,
+            entry.data[CONF_USERNAME],
+            entry.data[CONF_PASSWORD],
+        )
         await push.subscribe(base.event_id)
         hass.data[DOMAIN][base.push_manager] = push
 
@@ -108,8 +111,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     """Update the configuration at the base entity and API."""
     base = hass.data[DOMAIN][entry.entry_id][BASE]
-    
+
     base.motion_off_delay = entry.options[CONF_MOTION_OFF_DELAY]
+    base.playback_months = entry.options[CONF_PLAYBACK_MONTHS]
     await base.set_timeout(entry.options[CONF_TIMEOUT])
     await base.set_protocol(entry.options[CONF_PROTOCOL])
     await base.set_stream(entry.options[CONF_STREAM])
