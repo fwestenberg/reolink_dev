@@ -1,27 +1,27 @@
 """Reolink Camera Media Source Implementation."""
-import asyncio
-from os import environ
-from re import split
-from homeassistant.config_entries import ConfigEntry
-
-from homeassistant.helpers.config_validation import datetime
-from custom_components.reolink_dev.base import ReolinkBase
-import homeassistant.util.dt as dt_utils
+from urllib import parse
+import secrets
 import datetime as dt
-from dateutil import relativedelta
 import logging
 from typing import Optional, Tuple
+from aiohttp import web
+from haffmpeg.tools import IMAGE_JPEG
 
-from . import typings
+from dateutil import relativedelta
 
-from calendar import c, month_name
+from homeassistant.core import HomeAssistant, callback
 
+import homeassistant.util.dt as dt_utils
+
+from homeassistant.components.http import HomeAssistantView
+
+# from homeassistant.components.http.auth import async_sign_path
+from homeassistant.components.media_player.errors import BrowseError
 from homeassistant.components.media_player.const import (
     MEDIA_CLASS_DIRECTORY,
     MEDIA_CLASS_VIDEO,
     MEDIA_TYPE_VIDEO,
 )
-from homeassistant.components.media_player.errors import BrowseError
 from homeassistant.components.media_source.const import MEDIA_MIME_TYPES
 from homeassistant.components.media_source.error import MediaSourceError, Unresolvable
 from homeassistant.components.media_source.models import (
@@ -30,13 +30,15 @@ from homeassistant.components.media_source.models import (
     MediaSourceItem,
     PlayMedia,
 )
-from homeassistant.core import Event, HomeAssistant, callback
 
 from homeassistant.components.stream import create_stream
-from homeassistant.components.stream.const import FORMAT_CONTENT_TYPE, OUTPUT_FORMATS
 from homeassistant.components.ffmpeg import async_get_image
 
-from .const import BASE, DOMAIN
+from custom_components.reolink_dev.base import ReolinkBase
+
+from . import typings
+
+from .const import BASE, DEFAULT_THUMBNAIL_OFFSET, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 # MIME_TYPE = "rtmp/mp4"
@@ -53,7 +55,9 @@ class IncompatibleMediaSource(MediaSourceError):
 async def async_get_media_source(hass: HomeAssistant):
     """Set up Reolink media source."""
     _LOGGER.debug("Creating REOLink Media Source")
-    return ReolinkSource(hass)
+    source = ReolinkSource(hass)
+    hass.http.register_view(ReolinkSourceThumbnailView(hass, source))
+    return source
 
 
 class ReolinkSource(MediaSource):
@@ -167,8 +171,17 @@ class ReolinkSource(MediaSource):
             can_expand=event is None,
         )
 
-        # if not event is None and "thumbnail" in event:
-        #    media.thumbnail = event["thumbnail"]
+        if not event is None and cache.get("playback_thumbnails", False):
+            url = "/api/" + DOMAIN + f"/media_proxy/{camera_id}/{event_id}"
+
+            # TODO : I cannot find a way to get the current user context at this point
+            #        so I will have to leave the view as unauthenticated, as a temporary
+            #        security measure, I will add a unique token to the event to limit
+            #        "exposure"
+            # url = async_sign_path(self.hass, None, url, dt.timedelta(minutes=30))
+            if "token" not in event:
+                event["token"] = secrets.token_hex()
+            media.thumbnail = f"{url}?token={parse.quote_plus(event['token'])}"
 
         if not media.can_play and not media.can_expand:
             _LOGGER.debug(
@@ -204,6 +217,10 @@ class ReolinkSource(MediaSource):
             return media
 
         base = self.hass.data[DOMAIN][cache["entry_id"]][BASE]
+
+        # TODO: the cache is one way so over time it can grow and have invalid
+        #       records, the code should be expanded to invalidate/expire
+        #       entries
 
         if base is None:
             raise BrowseError("Camera does not exist.")
@@ -245,6 +262,8 @@ class ReolinkSource(MediaSource):
 
             return media
 
+        cache["playback_thumbnails"] = base.playback_thumbnails
+
         end_date = dt.datetime.combine(
             start_date.date(), dt.time.max, start_date.tzinfo
         )
@@ -282,19 +301,94 @@ class ReolinkSource(MediaSource):
                 event["start"] = start_date
                 event["end"] = end_date
                 event["file"] = file["name"]
-                if (
-                    "playback_thumbs" in cache
-                    and cache["playback_thumbs"]
-                    and not "thumbnail" in event
-                ):
-                    event["thumbail"] = await async_get_image(
-                        self.hass, await base.api.get_vod_source(file["name"])
-                    )
 
                 child = await self._async_browse_media(source, camera_id, event_id)
                 media.children.append(child)
 
         return media
+
+
+class ReolinkSourceThumbnailView(HomeAssistantView):
+    """ Thumbnial view handler """
+
+    url = "/api/" + DOMAIN + "/media_proxy/{camera_id}/{event_id}"
+    name = "api:" + DOMAIN + ":image"
+    requires_auth = False
+    cors_allowed = True
+
+    def __init__(self, hass: HomeAssistant, source: ReolinkSource):
+        """Initialize media view """
+
+        self.hass = hass
+        self.source = source
+
+    async def get(
+        self, request: web.Request, camera_id: str, event_id: str
+    ) -> web.Response:
+        """ start a GET request. """
+
+        if not camera_id or not event_id:
+            raise web.HTTPNotFound()
+
+        cache: typings.MediaSourceCacheEntry = self.source.cache.get(camera_id, None)
+        if cache is None or "playback_events" not in cache:
+            _LOGGER.debug("camera %s not found", camera_id)
+            raise web.HTTPNotFound()
+
+        event = cache["playback_events"].get(event_id, None)
+        if event is None:
+            _LOGGER.debug("camera %s, event %s not found", camera_id, event_id)
+            raise web.HTTPNotFound()
+
+        token = request.query.get("token")
+        if (token and event.get("token") != token) or (
+            not token and not self.requires_auth
+        ):
+            _LOGGER.debug(
+                "invalid or missing token %s for camera %s, event %s",
+                token,
+                camera_id,
+                event_id,
+            )
+            raise web.HTTPNotFound()
+
+        _LOGGER.debug("thumbnail %s, %s", camera_id, event_id)
+
+        base: ReolinkBase = self.hass.data[DOMAIN][cache["entry_id"]][BASE]
+
+        image = event.get("thumbnail", None)
+        if (
+            image is None
+            or cache.get("playback_thumbnail_offset", DEFAULT_THUMBNAIL_OFFSET)
+            != base.playback_thumbnail_offset
+        ):
+            cache["playback_thumbnails"] = base.playback_thumbnails
+            cache["playback_thumbnail_offset"] = base.playback_thumbnail_offset
+
+            if not cache["playback_thumbnails"]:
+                _LOGGER.debug("Thumbnails not allowed on camera %s", camera_id)
+                raise web.HTTPInternalServerError()
+
+            _LOGGER.debug("generating thumbnail for %s, %s", camera_id, event_id)
+
+            extra_cmd: str = None
+            if cache["playback_thumbnail_offset"] > 0:
+                extra_cmd = f"-ss {cache['playback_thumbnail_offset']}"
+
+            image = event["thumbail"] = await async_get_image(
+                self.hass,
+                await base.api.get_vod_source(event["file"]),
+                extra_cmd=extra_cmd,
+            )
+            _LOGGER.debug("generated thumbnail for %s, %s", camera_id, event_id)
+
+        if image:
+            return web.Response(body=image, content_type=IMAGE_JPEG)
+
+        _LOGGER.debug(
+            "No thumbnail generated for camera %s, event %s", camera_id, event_id
+        )
+        raise web.HTTPInternalServerError()
 
 
 @callback

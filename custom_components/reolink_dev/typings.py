@@ -11,6 +11,7 @@ VodEvent = TypedDict(
         "file": str,
         "thumbnail": Any,
     },
+    total=False,
 )
 
 MediaSourceCacheEntry = TypedDict(
@@ -21,7 +22,8 @@ MediaSourceCacheEntry = TypedDict(
         "event_id": str,
         "name": str,
         "playback_months": int,
-        "playback_thumbs": bool,
+        "playback_thumbnails": bool,
+        "playback_thumbnail_offset": int,
         "playback_day_entries": List[date],
         "playback_events": dict[str, VodEvent],
     },

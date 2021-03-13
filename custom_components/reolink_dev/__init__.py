@@ -24,9 +24,13 @@ from .const import (
     CONF_CHANNEL,
     CONF_MOTION_OFF_DELAY,
     CONF_PLAYBACK_MONTHS,
+    CONF_PLAYBACK_THUMBNAILS,
     CONF_PROTOCOL,
     CONF_STREAM,
+    CONF_THUMBNAIL_OFFSET,
     COORDINATOR,
+    DEFAULT_PLAYBACK_THUMBNAILS,
+    DEFAULT_THUMBNAIL_OFFSET,
     DOMAIN,
     EVENT_DATA_RECEIVED,
     PUSH_MANAGER,
@@ -110,10 +114,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     """Update the configuration at the base entity and API."""
-    base = hass.data[DOMAIN][entry.entry_id][BASE]
+    base: ReolinkBase = hass.data[DOMAIN][entry.entry_id][BASE]
 
     base.motion_off_delay = entry.options[CONF_MOTION_OFF_DELAY]
     base.playback_months = entry.options[CONF_PLAYBACK_MONTHS]
+    base.playback_thumbnails = entry.options.get(
+        CONF_PLAYBACK_THUMBNAILS, DEFAULT_PLAYBACK_THUMBNAILS
+    )
+    base.playback_thumbnail_offset = entry.options.get(
+        CONF_THUMBNAIL_OFFSET, DEFAULT_THUMBNAIL_OFFSET
+    )
+
     await base.set_timeout(entry.options[CONF_TIMEOUT])
     await base.set_protocol(entry.options[CONF_PROTOCOL])
     await base.set_stream(entry.options[CONF_STREAM])

@@ -20,14 +20,16 @@ from .const import (
     CONF_CHANNEL,
     CONF_MOTION_OFF_DELAY,
     CONF_PLAYBACK_MONTHS,
-    CONF_PLAYBACK_THUMBS,
+    CONF_PLAYBACK_THUMBNAILS,
     CONF_PROTOCOL,
     CONF_STREAM,
+    CONF_THUMBNAIL_OFFSET,
     DEFAULT_MOTION_OFF_DELAY,
     DEFAULT_PLAYBACK_MONTHS,
-    DEFAULT_PLAYBACK_THUMBS,
+    DEFAULT_PLAYBACK_THUMBNAILS,
     DEFAULT_PROTOCOL,
     DEFAULT_STREAM,
+    DEFAULT_THUMBNAIL_OFFSET,
     DEFAULT_TIMEOUT,
     DOMAIN,
 )
@@ -173,7 +175,7 @@ class ReolinkOptionsFlowHandler(config_entries.OptionsFlow):
                         default=self.config_entry.options.get(
                             CONF_MOTION_OFF_DELAY, DEFAULT_MOTION_OFF_DELAY
                         ),
-                    ): cv.positive_int,
+                    ): vol.All(vol.Coerce(int), vol.Range(min=1)),
                     vol.Required(
                         CONF_PLAYBACK_MONTHS,
                         default=self.config_entry.options.get(
@@ -181,11 +183,17 @@ class ReolinkOptionsFlowHandler(config_entries.OptionsFlow):
                         ),
                     ): cv.positive_int,
                     vol.Optional(
-                        CONF_PLAYBACK_THUMBS,
+                        CONF_PLAYBACK_THUMBNAILS,
                         default=self.config_entry.options.get(
-                            CONF_PLAYBACK_THUMBS, DEFAULT_PLAYBACK_THUMBS
+                            CONF_PLAYBACK_THUMBNAILS, DEFAULT_PLAYBACK_THUMBNAILS
                         ),
                     ): cv.boolean,
+                    vol.Optional(
+                        CONF_THUMBNAIL_OFFSET,
+                        default=self.config_entry.options.get(
+                            CONF_THUMBNAIL_OFFSET, DEFAULT_THUMBNAIL_OFFSET
+                        ),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=60)),
                     vol.Optional(
                         CONF_TIMEOUT,
                         default=self.config_entry.options.get(

@@ -23,9 +23,11 @@ from reolink.subscription_manager import Manager
 from .const import (
     BASE,
     CONF_PLAYBACK_MONTHS,
-    CONF_PLAYBACK_THUMBS,
+    CONF_PLAYBACK_THUMBNAILS,
+    CONF_THUMBNAIL_OFFSET,
     DEFAULT_PLAYBACK_MONTHS,
-    DEFAULT_PLAYBACK_THUMBS,
+    DEFAULT_PLAYBACK_THUMBNAILS,
+    DEFAULT_THUMBNAIL_OFFSET,
     EVENT_DATA_RECEIVED,
     CONF_CHANNEL,
     CONF_MOTION_OFF_DELAY,
@@ -100,10 +102,15 @@ class ReolinkBase:
         else:
             self.playback_months = options[CONF_PLAYBACK_MONTHS]
 
-        if CONF_PLAYBACK_THUMBS not in options:
-            self.playback_thumbs = DEFAULT_PLAYBACK_THUMBS
+        if CONF_PLAYBACK_THUMBNAILS not in options:
+            self.playback_thumbnails = DEFAULT_PLAYBACK_THUMBNAILS
         else:
-            self.playback_thumbs = options[CONF_PLAYBACK_THUMBS]
+            self.playback_thumbnails = options[CONF_PLAYBACK_THUMBNAILS]
+
+        if CONF_THUMBNAIL_OFFSET not in options:
+            self.playback_thumbnail_offset = DEFAULT_THUMBNAIL_OFFSET
+        else:
+            self.playback_thumbnail_offset = options[CONF_THUMBNAIL_OFFSET]
 
     @property
     def name(self):
