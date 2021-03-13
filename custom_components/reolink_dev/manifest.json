@@ -8,7 +8,12 @@
     "reolink==0.0.16"
   ],
   "dependencies": [
-    "ffmpeg"
+    "ffmpeg",
+    "webhook"
+  ],
+  "after_dependencies": [
+    "media_source",
+    "http"
   ],
   "codeowners": [
     "@fwestenberg"
