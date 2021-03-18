@@ -59,3 +59,26 @@ set_daynight:
           COLOR: Always record videos in color mode
           BLACKANDWHITE: Always record videos in black & white mode
       example: AUTO
+
+set_backlight:
+  name: Set backlight
+  description:  >- 
+    Optimizing brightness and contrast levels to compensate for differences 
+    between dark and bright objects using either BLC or WDR mode. 
+    This may improve image clarity in high contrast situations, 
+    but it should be tested at different times of the day and night to ensure there is no negative effect.
+  target:
+    entity:
+      integration: reolink_dev
+      domain: camera
+  fields:
+    entity_id:
+      description: Name(s) of the Reolink camera entity to execute the command on.
+      example: 'camera.frontdoor'
+    mode:
+      description: >-
+        The backlight parameter supports the following values:
+          BACKLIGHTCONTROL: use Backlight Control
+          DYNAMICRANGECONTROL: use Dynamic Range Control
+          OFF: no optimization
+      example: DYNAMICRANGECONTROL
