@@ -31,7 +31,10 @@
                     "protocol": "Protocol",
                     "stream": "Stream",
                     "timeout": "Timeout (seconds)",
-					"motion_off_delay": "Motion sensor off delay (seconds)"
+                    "motion_off_delay": "Motion sensor off delay (seconds)",
+                    "playback_months": "Playback range (months)",
+                    "playback_thumbnails": "Create thumbnails for playback items",
+                    "playback_thumbnail_offset": "Pre-Record offset (seconds) for thumbnail"
                 }
             }
         }
