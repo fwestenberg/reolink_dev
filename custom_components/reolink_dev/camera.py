@@ -14,7 +14,12 @@ from homeassistant.helpers.aiohttp_client import (
     async_get_clientsession,
 )
 
-from .const import SERVICE_PTZ_CONTROL, SERVICE_SET_BACKLIGHT, SERVICE_SET_DAYNIGHT, SERVICE_SET_SENSITIVITY
+from .const import (
+    SERVICE_PTZ_CONTROL,
+    SERVICE_SET_BACKLIGHT,
+    SERVICE_SET_DAYNIGHT,
+    SERVICE_SET_SENSITIVITY,
+)
 from .entity import ReolinkEntity
 
 _LOGGER = logging.getLogger(__name__)
@@ -146,7 +151,7 @@ class ReolinkCamera(ReolinkEntity, Camera):
         return SUPPORT_STREAM
 
     async def stream_source(self):
-        """Return the source of the stream."""        
+        """Return the source of the stream."""
         return await self._base.api.get_stream_source()
 
     async def handle_async_mjpeg_stream(self, request):
