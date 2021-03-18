@@ -175,7 +175,7 @@ class ReolinkOptionsFlowHandler(config_entries.OptionsFlow):
                         default=self.config_entry.options.get(
                             CONF_MOTION_OFF_DELAY, DEFAULT_MOTION_OFF_DELAY
                         ),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=1)),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0)),
                     vol.Required(
                         CONF_PLAYBACK_MONTHS,
                         default=self.config_entry.options.get(
