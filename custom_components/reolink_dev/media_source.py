@@ -250,9 +250,15 @@ class ReolinkSource(MediaSource):
                             if flag == "1":
                                 entries.append(dt.date(year, month, day))
 
-                entries.sort()
+                entries.sort(reverse=True)
             else:
                 entries = cache["playback_day_entries"]
+
+                # force today to be in the list to ensure
+                # entries recorded today are not missed
+                today = dt_utils.now().date()
+                if today not in entries:
+                    entries.insert(0, today)
 
             for date in cache["playback_day_entries"]:
                 child = await self._async_browse_media(
@@ -321,6 +327,7 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
 
         self.hass = hass
         self.source = source
+        self._tasks = {}
 
     async def get(
         self, request: web.Request, camera_id: str, event_id: str
@@ -375,20 +382,31 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
             if cache["playback_thumbnail_offset"] > 0:
                 extra_cmd = f"-ss {cache['playback_thumbnail_offset']}"
 
-            image = event["thumbail"] = await async_get_image(
-                self.hass,
-                await base.api.get_vod_source(event["file"]),
-                extra_cmd=extra_cmd,
-            )
-            _LOGGER.debug("generated thumbnail for %s, %s", camera_id, event_id)
+            host = self._tasks.setdefault(base.api.host, {})
+            url = await base.api.get_vod_source(event["file"])
+            if url not in host:
+                host[url] = self.hass.async_create_task(
+                    self._async_get_image(host, url, extra_cmd)
+                )
+            image = event["thumbnail"] = await host[url]
+            host.pop(url, None)
 
         if image:
+            _LOGGER.debug("generated thumbnail for %s, %s", camera_id, event_id)
             return web.Response(body=image, content_type=IMAGE_JPEG)
 
         _LOGGER.debug(
             "No thumbnail generated for camera %s, event %s", camera_id, event_id
         )
         raise web.HTTPInternalServerError()
+
+    async def _async_get_image(self, host: dict, url: str, extra_cmd: str = None):
+        if "current" in host:
+            await host["current"]
+        host["current"] = host[url]
+        image = await async_get_image(self.hass, url, extra_cmd=extra_cmd)
+        host.pop("current", None)
+        return image
 
 
 @callback
