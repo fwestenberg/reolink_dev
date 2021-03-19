@@ -3,8 +3,10 @@ from urllib import parse
 import secrets
 import datetime as dt
 import logging
+import os
 from typing import Optional, Tuple
 from aiohttp import web
+
 from haffmpeg.tools import IMAGE_JPEG
 
 from dateutil import relativedelta
@@ -46,6 +48,8 @@ _LOGGER = logging.getLogger(__name__)
 MIME_TYPE = "application/x-mpegURL"
 
 NAME = "Reolink IP Camera"
+
+STORAGE_DIR = ".storage"
 
 
 class IncompatibleMediaSource(MediaSourceError):
@@ -307,6 +311,10 @@ class ReolinkSource(MediaSource):
                 event["start"] = start_date
                 event["end"] = end_date
                 event["file"] = file["name"]
+                filepath = f"{DOMAIN}/thumbnails/{camera_id}/{event_id}.jpg"
+                path = self.hass.config.path(STORAGE_DIR, filepath)
+                if os.path.isfile(path):
+                    event["thumbnail"] = filepath
 
                 child = await self._async_browse_media(source, camera_id, event_id)
                 media.children.append(child)
@@ -363,6 +371,8 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
 
         base: ReolinkBase = self.hass.data[DOMAIN][cache["entry_id"]][BASE]
 
+        filepath = f"{DOMAIN}/thumbnails/{camera_id}/{event_id}.jpg"
+
         image = event.get("thumbnail", None)
         if (
             image is None
@@ -388,11 +398,16 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
                 host[url] = self.hass.async_create_task(
                     self._async_get_image(host, url, extra_cmd)
                 )
+                self.hass.async_create_task(
+                    self._async_save_image(filepath, event, host[url])
+                )
             image = event["thumbnail"] = await host[url]
             host.pop(url, None)
-
-        if image:
             _LOGGER.debug("generated thumbnail for %s, %s", camera_id, event_id)
+
+        if isinstance(image, str):
+            return web.FileResponse(self.hass.config.path(STORAGE_DIR, image))
+        if image:
             return web.Response(body=image, content_type=IMAGE_JPEG)
 
         _LOGGER.debug(
@@ -407,6 +422,20 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
         image = await async_get_image(self.hass, url, extra_cmd=extra_cmd)
         host.pop("current", None)
         return image
+
+    async def _async_save_image(self, path: str, event: typings.VodEvent, task):
+        image = await task
+        await self.hass.async_add_executor_job(self._save_image, path, image)
+        event["thumbnail"] = path
+
+    def _save_image(self, key: str, data):
+        path = self.hass.config.path(STORAGE_DIR, key)
+        if not os.path.isdir(os.path.dirname(path)):
+            os.makedirs(os.path.dirname(path))
+
+        f = open(path, "wb")
+        f.write(data)
+        f.close()
 
 
 @callback
