@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Optional, Tuple
 from aiohttp import web
+import asyncio
 
 from haffmpeg.tools import IMAGE_JPEG
 
@@ -34,7 +35,7 @@ from homeassistant.components.media_source.models import (
 )
 
 from homeassistant.components.stream import create_stream
-from homeassistant.components.ffmpeg import async_get_image
+from homeassistant.components.ffmpeg import DATA_FFMPEG
 
 from custom_components.reolink_dev.base import ReolinkBase
 
@@ -73,6 +74,10 @@ class ReolinkSource(MediaSource):
         """Initialize Reolink source."""
         super().__init__(DOMAIN)
         self.hass = hass
+        if DATA_FFMPEG in hass.data:
+            ffmpeg = hass.data[DATA_FFMPEG]
+            if not ffmpeg is None:
+                self._ffmpeg_bin = ffmpeg.binary
         self.cache = {}
 
     async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
@@ -206,6 +211,9 @@ class ReolinkSource(MediaSource):
                 if not isinstance(entry, dict) or not BASE in entry:
                     continue
                 base = entry[BASE]
+                if base.api.hdd_info is None or len(base.api.hdd_info) < 1:
+                    continue
+                _LOGGER.debug("%s", base.api.hdd_info)
                 camera_id = base.unique_id
                 cache = self.cache.get(camera_id, None)
                 if cache is None:
@@ -272,7 +280,9 @@ class ReolinkSource(MediaSource):
 
             return media
 
-        cache["playback_thumbnails"] = base.playback_thumbnails
+        cache["playback_thumbnails"] = (
+            base.playback_thumbnails and not self._ffmpeg_bin is None
+        )
 
         end_date = dt.datetime.combine(
             start_date.date(), dt.time.max, start_date.tzinfo
@@ -386,23 +396,27 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
                 _LOGGER.debug("Thumbnails not allowed on camera %s", camera_id)
                 raise web.HTTPInternalServerError()
 
-            _LOGGER.debug("generating thumbnail for %s, %s", camera_id, event_id)
-
             extra_cmd: str = None
             if cache["playback_thumbnail_offset"] > 0:
                 extra_cmd = f"-ss {cache['playback_thumbnail_offset']}"
 
-            host = self._tasks.setdefault(base.api.host, {})
+            tasks = self._tasks.setdefault(base.api.host, {})
             url = await base.api.get_vod_source(event["file"])
-            if url not in host:
-                host[url] = self.hass.async_create_task(
-                    self._async_get_image(host, url, extra_cmd)
+            task = tasks.get(url, None)
+            if task is None:
+                _LOGGER.debug(
+                    "queueing thumbnail generation for %s, %s", camera_id, event_id
                 )
-                self.hass.async_create_task(
-                    self._async_save_image(filepath, event, host[url])
+                tasks[url] = tasks["current"] = task = self.hass.async_create_task(
+                    self._async_get_image(
+                        tasks, url, filepath, extra_cmd, tasks.get("current", None)
+                    )
                 )
-            image = event["thumbnail"] = await host[url]
-            host.pop(url, None)
+
+            image = event["thumbnail"] = await task
+            tasks.pop(url, None)
+            if tasks["current"] == task:
+                tasks.pop("current")
             _LOGGER.debug("generated thumbnail for %s, %s", camera_id, event_id)
 
         if isinstance(image, str):
@@ -415,16 +429,47 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
         )
         raise web.HTTPInternalServerError()
 
-    async def _async_get_image(self, host: dict, url: str, extra_cmd: str = None):
-        if "current" in host:
-            await host["current"]
-        host["current"] = host[url]
-        image = await async_get_image(self.hass, url, extra_cmd=extra_cmd)
-        host.pop("current", None)
-        return image
+    async def _async_get_image(
+        self,
+        tasks: dict,
+        url: str,
+        filepath: str,
+        extra_cmd: str = None,
+        waitforit=None,
+    ):
+        if waitforit is not None:
+            await waitforit
+
+        path = self.hass.config.path(STORAGE_DIR, filepath)
+        if not os.path.isdir(os.path.dirname(path)):
+            os.makedirs(os.path.dirname(path))
+
+        # async_get_image runs horribly slow on my rPI4 but ffmpeg runs fine from command line
+        # so this is a direct call to bypass the pipe issues
+        proc = await asyncio.create_subprocess_exec(
+            self.source._ffmpeg_bin,
+            "-loglevel",
+            "fatal",
+            "-i",
+            url,
+            "-an",
+            "-frames:v",
+            "1",
+            "-c:v",
+            IMAGE_JPEG,
+            path,
+            stdout=asyncio.subprocess.DEVNULL,
+        )
+        _stdin, _stderr = await proc.communicate()
+
+        # image = await async_get_image(self.hass, url, extra_cmd=extra_cmd)
+
+        return filepath
 
     async def _async_save_image(self, path: str, event: typings.VodEvent, task):
         image = await task
+        if image is None:
+            return
         await self.hass.async_add_executor_job(self._save_image, path, image)
         event["thumbnail"] = path
 
@@ -433,9 +478,11 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
         if not os.path.isdir(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
 
+        _LOGGER.debug("writing thumbnail to %s", path)
         f = open(path, "wb")
         f.write(data)
         f.close()
+        _LOGGER.debug("finished")
 
 
 @callback
