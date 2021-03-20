@@ -4,7 +4,7 @@ import secrets
 import datetime as dt
 import logging
 import os
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 from aiohttp import web
 import asyncio
 
@@ -263,6 +263,14 @@ class ReolinkSource(MediaSource):
                                 entries.append(dt.date(year, month, day))
 
                 entries.sort(reverse=True)
+
+                oldest = entries[-1]
+                thumb_dir = f"{DOMAIN}/thumbnails/{camera_id}"
+
+                # background directory scan and expired thumbnail cleanup
+                self.hass.async_add_executor_job(
+                    self._cleanup_expired_thumbnails, thumb_dir, oldest
+                )
             else:
                 entries = cache["playback_day_entries"]
 
@@ -331,6 +339,28 @@ class ReolinkSource(MediaSource):
 
         return media
 
+    def _cleanup_expired_thumbnails(self, filepath: str, before: dt.date):
+        """ cleanup expired thumbnails for camera """
+
+        path = self.hass.config.path(STORAGE_DIR, filepath)
+        if not os.path.isdir(path):
+            return
+
+        _LOGGER.debug("cleanup of thumbnails older than %s for %s", before, filepath)
+        (_, _, filenames) = next(os.walk(path))
+        ts = dt.datetime.combine(before, dt.time.min).timestamp()
+
+        for filename in filenames:
+            basename = os.path.splitext(filename)[0]
+            _LOGGER.debug("got %s", basename)
+            try:
+                file_ts = float(basename)
+            except ValueError:
+                continue
+
+            if file_ts < ts:
+                os.remove(os.path.join(path, filename))
+
 
 class ReolinkSourceThumbnailView(HomeAssistantView):
     """ Thumbnial view handler """
@@ -396,9 +426,9 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
                 _LOGGER.debug("Thumbnails not allowed on camera %s", camera_id)
                 raise web.HTTPInternalServerError()
 
-            extra_cmd: str = None
+            extra_cmd: List[str] = None
             if cache["playback_thumbnail_offset"] > 0:
-                extra_cmd = f"-ss {cache['playback_thumbnail_offset']}"
+                extra_cmd = ["-ss", cache["playback_thumbnail_offset"]]
 
             tasks = self._tasks.setdefault(base.api.host, {})
             url = await base.api.get_vod_source(event["file"])
@@ -409,7 +439,7 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
                 )
                 tasks[url] = tasks["current"] = task = self.hass.async_create_task(
                     self._async_get_image(
-                        tasks, url, filepath, extra_cmd, tasks.get("current", None)
+                        url, filepath, extra_cmd, tasks.get("current", None)
                     )
                 )
 
@@ -431,10 +461,9 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
 
     async def _async_get_image(
         self,
-        tasks: dict,
         url: str,
         filepath: str,
-        extra_cmd: str = None,
+        extra_cmd: List[str] = None,
         waitforit=None,
     ):
         if waitforit is not None:
@@ -444,10 +473,8 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
         if not os.path.isdir(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
 
-        # async_get_image runs horribly slow on my rPI4 but ffmpeg runs fine from command line
-        # so this is a direct call to bypass the pipe issues
-        proc = await asyncio.create_subprocess_exec(
-            self.source._ffmpeg_bin,
+        cmd = [
+            self.source._ffmpeg_bin,  # pylint: disable=protected-access
             "-loglevel",
             "fatal",
             "-i",
@@ -457,10 +484,20 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
             "1",
             "-c:v",
             IMAGE_JPEG,
-            path,
+        ]
+
+        if not extra_cmd is None:
+            cmd.extend(extra_cmd)
+
+        cmd.append(path)
+
+        # async_get_image runs horribly slow on my rPI4 but ffmpeg runs fine from command line
+        # so this is a direct call to bypass the pipe issues
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
             stdout=asyncio.subprocess.DEVNULL,
         )
-        _stdin, _stderr = await proc.communicate()
+        _, _ = await proc.communicate()
 
         # image = await async_get_image(self.hass, url, extra_cmd=extra_cmd)
 
