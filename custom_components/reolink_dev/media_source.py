@@ -428,7 +428,7 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
 
             extra_cmd: List[str] = None
             if cache["playback_thumbnail_offset"] > 0:
-                extra_cmd = ["-ss", cache["playback_thumbnail_offset"]]
+                extra_cmd = ["-ss", str(cache["playback_thumbnail_offset"])]
 
             tasks = self._tasks.setdefault(base.api.host, {})
             url = await base.api.get_vod_source(event["file"])
