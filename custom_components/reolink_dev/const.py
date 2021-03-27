@@ -7,6 +7,8 @@ COORDINATOR = "coordinator"
 BASE = "base"
 PUSH_MANAGER = "push_manager"
 SESSION_RENEW_THRESHOLD = 300
+MEDIA_SOURCE = "media_source"
+THUMBNAIL_VIEW = "thumbnail_view"
 
 CONF_STREAM = "stream"
 CONF_PROTOCOL = "protocol"
@@ -14,7 +16,7 @@ CONF_CHANNEL = "channel"
 CONF_MOTION_OFF_DELAY = "motion_off_delay"
 CONF_PLAYBACK_MONTHS = "playback_months"
 CONF_PLAYBACK_THUMBNAILS = "playback_thumbnails"
-CONF_THUMBNAIL_OFFSET = "playback_thumbnail_offset"
+CONF_THUMBNAIL_PATH = "playback_thumbnail_path"
 
 DEFAULT_CHANNEL = 1
 DEFAULT_MOTION_OFF_DELAY = 60

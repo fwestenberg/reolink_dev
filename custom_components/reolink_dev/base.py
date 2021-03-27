@@ -24,10 +24,9 @@ from .const import (
     BASE,
     CONF_PLAYBACK_MONTHS,
     CONF_PLAYBACK_THUMBNAILS,
-    CONF_THUMBNAIL_OFFSET,
+    CONF_THUMBNAIL_PATH,
     DEFAULT_PLAYBACK_MONTHS,
     DEFAULT_PLAYBACK_THUMBNAILS,
-    DEFAULT_THUMBNAIL_OFFSET,
     EVENT_DATA_RECEIVED,
     CONF_CHANNEL,
     CONF_MOTION_OFF_DELAY,
@@ -95,22 +94,17 @@ class ReolinkBase:
         if CONF_MOTION_OFF_DELAY not in options:
             self.motion_off_delay = DEFAULT_MOTION_OFF_DELAY
         else:
-            self.motion_off_delay = options[CONF_MOTION_OFF_DELAY]
+            self.motion_off_delay: int = options[CONF_MOTION_OFF_DELAY]
 
         if CONF_PLAYBACK_MONTHS not in options:
             self.playback_months = DEFAULT_PLAYBACK_MONTHS
         else:
-            self.playback_months = options[CONF_PLAYBACK_MONTHS]
+            self.playback_months: int = options[CONF_PLAYBACK_MONTHS]
 
         if CONF_PLAYBACK_THUMBNAILS not in options:
             self.playback_thumbnails = DEFAULT_PLAYBACK_THUMBNAILS
         else:
-            self.playback_thumbnails = options[CONF_PLAYBACK_THUMBNAILS]
-
-        if CONF_THUMBNAIL_OFFSET not in options:
-            self.playback_thumbnail_offset = DEFAULT_THUMBNAIL_OFFSET
-        else:
-            self.playback_thumbnail_offset = options[CONF_THUMBNAIL_OFFSET]
+            self.playback_thumbnails: bool = options[CONF_PLAYBACK_THUMBNAILS]
 
     @property
     def name(self):

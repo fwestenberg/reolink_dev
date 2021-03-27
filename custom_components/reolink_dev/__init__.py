@@ -27,10 +27,9 @@ from .const import (
     CONF_PLAYBACK_THUMBNAILS,
     CONF_PROTOCOL,
     CONF_STREAM,
-    CONF_THUMBNAIL_OFFSET,
+    CONF_THUMBNAIL_PATH,
     COORDINATOR,
     DEFAULT_PLAYBACK_THUMBNAILS,
-    DEFAULT_THUMBNAIL_OFFSET,
     DOMAIN,
     EVENT_DATA_RECEIVED,
     PUSH_MANAGER,
@@ -120,9 +119,6 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     base.playback_months = entry.options[CONF_PLAYBACK_MONTHS]
     base.playback_thumbnails = entry.options.get(
         CONF_PLAYBACK_THUMBNAILS, DEFAULT_PLAYBACK_THUMBNAILS
-    )
-    base.playback_thumbnail_offset = entry.options.get(
-        CONF_THUMBNAIL_OFFSET, DEFAULT_THUMBNAIL_OFFSET
     )
 
     await base.set_timeout(entry.options[CONF_TIMEOUT])
