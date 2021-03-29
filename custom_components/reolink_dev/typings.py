@@ -1,10 +1,8 @@
 """ Typing declarations for strongly typed dictionaries """
 
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Type, TypeVar, TypedDict, Union
+from typing import Dict, Optional, TypedDict, Union
 from datetime import datetime
-
-from voluptuous.schema_builder import Object
 
 
 @dataclass
@@ -49,21 +47,13 @@ class ReolinkMediaSourceHelper:
 
     async def async_motion_snapshot(self, system_now: datetime, base):
         """ generate a snapshot of the current motion event """
+        raise NotImplementedError()
 
-
-TKEY = TypeVar("TKEY")
-TVALUE = TypeVar("TVALUE")
-
-
-def try_get_or_create_item(
-    self: Dict[TKEY, TVALUE], key: TKEY, factory: Callable[[TKEY], Optional[TVALUE]]
-):
-    """ dict extension to get a value or factory create it """
-
-    value = self.get(key, None)
-    if not value is None:
-        return value
-    value = factory(key)
-    if not value is None:
-        return self.setdefault(key, value)
-    return None
+    async def async_synchronize_thumbnails(
+        self,
+        camera_id: str,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+    ):
+        """ Synchronize in memory thumbnails with VoDs """
+        raise NotImplementedError()

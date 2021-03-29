@@ -62,10 +62,10 @@ set_daynight:
 
 set_backlight:
   name: Set backlight
-  description:  >- 
-    Optimizing brightness and contrast levels to compensate for differences 
-    between dark and bright objects using either BLC or WDR mode. 
-    This may improve image clarity in high contrast situations, 
+  description:  >-
+    Optimizing brightness and contrast levels to compensate for differences
+    between dark and bright objects using either BLC or WDR mode.
+    This may improve image clarity in high contrast situations,
     but it should be tested at different times of the day and night to ensure there is no negative effect.
   target:
     entity:
@@ -82,3 +82,27 @@ set_backlight:
           DYNAMICRANGECONTROL: use Dynamic Range Control
           OFF: no optimization
       example: DYNAMICRANGECONTROL
+
+commit_thumbnails:
+  name: Commit In-Memory Playback Thumbnails
+  description: >-
+    For cameras that have Video-On-Demand Playback Capability, the system will capture
+    thumbnails of motion events and hold them in memory until they are matched with
+    recodings on the camera, this only happens automatically when using the media browser.
+    This service allows this matching to occur via script or automation as well
+  target:
+    entity:
+      integration: reolink_dev
+      domain: camera
+  fields:
+    entity_id:
+      description: Name(s) of the Reolink camera entity to execute the command on.
+      example: 'camera.frontdoor'
+    start:
+      description: >-
+        Start of date range, if not provided will use the first unmatched thumbnail in memory
+      example: "1/1/2021"
+    end:
+      description: >-
+        End of date range, if not provided will use the current date and time
+      example: "1/31/2021"

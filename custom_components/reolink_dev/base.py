@@ -1,6 +1,8 @@
 """This component updates the camera API and subscription."""
+from datetime import datetime
 import logging
 import re
+from typing import Awaitable, List, Optional, Tuple
 
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR
 from homeassistant.const import (
@@ -19,6 +21,7 @@ from homeassistant.helpers.entity_registry import (
 
 from reolink.camera_api import Api
 from reolink.subscription_manager import Manager
+from reolink.typings import SearchStatus, SearchFile
 
 from .const import (
     BASE,
@@ -191,6 +194,12 @@ class ReolinkBase:
         await self.disconnect_api()
         for func in self.sync_functions:
             await self._hass.async_add_executor_job(func)
+
+    async def send_search(
+        self, start: datetime, end: datetime, only_status: bool = False
+    ):
+        """ Call the API of the camera device to search for VoDs """
+        return await self._api.send_search(start, end, only_status)
 
 
 class ReolinkPush:

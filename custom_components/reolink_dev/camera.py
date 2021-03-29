@@ -1,13 +1,16 @@
 """This component provides support for Reolink IP cameras."""
 import asyncio
+from custom_components.reolink_dev.typings import ReolinkMediaSourceHelper
 from datetime import datetime
 import logging
+from typing import cast
 
-from haffmpeg.camera import CameraMjpeg
 import voluptuous as vol
 
 from homeassistant.components.camera import SUPPORT_STREAM, Camera
-from homeassistant.components.ffmpeg import DATA_FFMPEG
+from homeassistant.components.media_source.const import DOMAIN as MEDIA_SOURCE_DOMAIN
+
+# from homeassistant.components.ffmpeg import DATA_FFMPEG
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.aiohttp_client import (
     async_aiohttp_proxy_web,
@@ -15,12 +18,18 @@ from homeassistant.helpers.aiohttp_client import (
 )
 
 from .const import (
+    DOMAIN,
     SERVICE_PTZ_CONTROL,
     SERVICE_SET_BACKLIGHT,
     SERVICE_SET_DAYNIGHT,
     SERVICE_SET_SENSITIVITY,
+    SERVICE_COMMIT_THUMBNAILS,
+    SUPPORT_PLAYBACK,
+    SUPPORT_PTZ,
 )
 from .entity import ReolinkEntity
+
+from .typings import ReolinkMediaSourceHelper
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -65,6 +74,13 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
             vol.Optional("speed"): cv.positive_int,
         },
         SERVICE_PTZ_CONTROL,
+        SUPPORT_PTZ,
+    )
+    platform.async_register_entity_service(
+        SERVICE_COMMIT_THUMBNAILS,
+        {vol.Optional("start"): cv.datetime, vol.Optional("end"): cv.datetime},
+        SERVICE_COMMIT_THUMBNAILS,
+        SUPPORT_PLAYBACK,
     )
 
     async_add_devices([camera])
@@ -78,9 +94,8 @@ class ReolinkCamera(ReolinkEntity, Camera):
         ReolinkEntity.__init__(self, hass, config)
         Camera.__init__(self)
 
-        self._hass = hass
-        self._ffmpeg = self._hass.data[DATA_FFMPEG]
-        self._last_image = None
+        # self._ffmpeg = self._hass.data[DATA_FFMPEG]
+        # self._last_image = None
         self._ptz_commands = {
             "AUTO": "Auto",
             "DOWN": "Down",
@@ -126,6 +141,11 @@ class ReolinkCamera(ReolinkEntity, Camera):
         return self._base.api.ptz_support
 
     @property
+    def playback_support(self):
+        """ Return whethere the camera has VoDs. """
+        return bool(self._base.api.hdd_info)
+
+    @property
     def device_state_attributes(self):
         """Return the camera state attributes."""
         attrs = {}
@@ -148,7 +168,12 @@ class ReolinkCamera(ReolinkEntity, Camera):
     @property
     def supported_features(self):
         """Return supported features."""
-        return SUPPORT_STREAM
+        features = SUPPORT_STREAM
+        if self.ptz_support:
+            features += SUPPORT_PTZ
+        if self.playback_support:
+            features += SUPPORT_PLAYBACK
+        return features
 
     async def stream_source(self):
         """Return the source of the stream."""
@@ -175,6 +200,23 @@ class ReolinkCamera(ReolinkEntity, Camera):
 
         await self._base.api.set_ptz_command(
             command=self._ptz_commands[command], **kwargs
+        )
+
+    async def commit_thumbnails(self, start, end):
+        """ Pass Sync command to media source """
+        if not self.playback_support:
+            _LOGGER.error("Video Playback is not supported on this device")
+            return
+
+        media_source: ReolinkMediaSourceHelper = cast(
+            dict, self.hass.data.get(MEDIA_SOURCE_DOMAIN, {})
+        ).get(DOMAIN, None)
+        if not media_source:
+            _LOGGER.error("Video Playback is disabled on this system")
+            return
+
+        await media_source.async_synchronize_thumbnails(
+            self._base.unique_id, start, end
         )
 
     def get_sensitivity_presets(self):

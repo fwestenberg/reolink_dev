@@ -1,6 +1,5 @@
 """ Storage Extensions """
 
-from collections import deque
 from json.encoder import JSONEncoder
 import logging
 import os
