@@ -57,3 +57,19 @@ class ReolinkMediaSourceHelper:
     ):
         """ Synchronize in memory thumbnails with VoDs """
         raise NotImplementedError()
+
+    async def async_query_vods(
+        self,
+        camera_id: str,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
+        thumbnail_path: Optional[str] = None,
+    ):
+        """ Query camera for VoDs and emit them as events """
+        raise NotImplementedError()
+
+    async def async_purge_thumbnails(
+        self, camera_id: str, start: Optional[datetime] = None
+    ):
+        """ Cleanup expired thumbnails/thumbnails older than """
+        raise NotImplementedError()

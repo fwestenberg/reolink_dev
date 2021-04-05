@@ -10,6 +10,8 @@ SESSION_RENEW_THRESHOLD = 300
 MEDIA_SOURCE = "media_source"
 THUMBNAIL_VIEW = "thumbnail_view"
 
+EVENT_VOD_DATA = "reolink_dev-vod-event"
+
 CONF_STREAM = "stream"
 CONF_PROTOCOL = "protocol"
 CONF_CHANNEL = "channel"
@@ -36,3 +38,5 @@ SERVICE_SET_DAYNIGHT = "set_daynight"
 SERVICE_SET_SENSITIVITY = "set_sensitivity"
 
 SERVICE_COMMIT_THUMBNAILS = "commit_thumbnails"
+SERVICE_QUERY_VOD = "query_vods"
+SERVICE_CLEANUP_THUMBNAILS = "cleanup_thumbnails"
