@@ -40,36 +40,3 @@ class ReolinkMediaSourceConfig(TypedDict, total=False):
     """ Dynamic configuration entries for storage """
 
     configs: Dict[str, ReolinkMediaSourceConfigEntry]
-
-
-class ReolinkMediaSourceHelper:
-    """ stub entries to ducktype MediaSource functions in other modules """
-
-    async def async_motion_snapshot(self, system_now: datetime, base):
-        """ generate a snapshot of the current motion event """
-        raise NotImplementedError()
-
-    async def async_synchronize_thumbnails(
-        self,
-        camera_id: str,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
-    ):
-        """ Synchronize in memory thumbnails with VoDs """
-        raise NotImplementedError()
-
-    async def async_query_vods(
-        self,
-        camera_id: str,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
-        thumbnail_path: Optional[str] = None,
-    ):
-        """ Query camera for VoDs and emit them as events """
-        raise NotImplementedError()
-
-    async def async_purge_thumbnails(
-        self, camera_id: str, start: Optional[datetime] = None
-    ):
-        """ Cleanup expired thumbnails/thumbnails older than """
-        raise NotImplementedError()

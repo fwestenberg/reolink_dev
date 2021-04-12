@@ -2,12 +2,11 @@
 import asyncio
 from datetime import datetime
 import logging
-from typing import Optional, cast
+from typing import Optional
 
 import voluptuous as vol
 
 from homeassistant.components.camera import SUPPORT_STREAM, Camera
-from homeassistant.components.media_source.const import DOMAIN as MEDIA_SOURCE_DOMAIN
 
 # from homeassistant.components.ffmpeg import DATA_FFMPEG
 from homeassistant.helpers import config_validation as cv, entity_platform
@@ -17,7 +16,7 @@ from homeassistant.helpers.aiohttp_client import (
 )
 
 from .const import (
-    DOMAIN,
+    EVENT_VOD_DATA,
     SERVICE_PTZ_CONTROL,
     SERVICE_QUERY_VOD,
     SERVICE_SET_BACKLIGHT,
@@ -29,8 +28,6 @@ from .const import (
     SUPPORT_PTZ,
 )
 from .entity import ReolinkEntity
-
-from .typings import ReolinkMediaSourceHelper
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,7 +94,8 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     platform.async_register_entity_service(
         SERVICE_QUERY_VOD,
         {
-            vol.Required("path"): cv.path,
+            vol.Optional("start"): cv.datetime,
+            vol.Optional("end"): cv.datetime,
         },
         SERVICE_QUERY_VOD,
         SUPPORT_PLAYBACK,
@@ -228,36 +226,15 @@ class ReolinkCamera(ReolinkEntity, Camera):
             _LOGGER.error("Video Playback is not supported on this device")
             return
 
-        media_source: ReolinkMediaSourceHelper = cast(
-            dict, self.hass.data.get(MEDIA_SOURCE_DOMAIN, {})
-        ).get(DOMAIN, None)
-        if not media_source:
-            _LOGGER.error("Video Playback is disabled on this system")
-            return
+        await self._base.commit_thumbnails(start, end)
 
-        await media_source.async_synchronize_thumbnails(
-            self._base.unique_id, start, end
-        )
-
-    async def query_vods(
-        self,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
-        path: Optional[str] = None,
-    ):
-        """ Query camera for VoDs """
+    async def query_vods(self, start, end):
+        """ Query camera for VoDs and emit results """
         if not self.playback_support:
             _LOGGER.error("Video Playback is not supported on this device")
             return
 
-        media_source: ReolinkMediaSourceHelper = cast(
-            dict, self.hass.data.get(MEDIA_SOURCE_DOMAIN, {})
-        ).get(DOMAIN, None)
-        if not media_source:
-            _LOGGER.error("Video Playback is disabled on this system")
-            return
-
-        await media_source.async_query_vods(self._base.unique_id, start, end, path)
+        await self._base.emit_search_results(EVENT_VOD_DATA, start, end)
 
     async def cleanup_thumbnails(self, older_than: Optional[datetime] = None):
         """ Cleanup Thumbnails """
@@ -265,14 +242,7 @@ class ReolinkCamera(ReolinkEntity, Camera):
             _LOGGER.error("Video Playback is not supported on this device")
             return
 
-        media_source: ReolinkMediaSourceHelper = cast(
-            dict, self.hass.data.get(MEDIA_SOURCE_DOMAIN, {})
-        ).get(DOMAIN, None)
-        if not media_source:
-            _LOGGER.error("Video Playback is disabled on this system")
-            return
-
-        await media_source.async_purge_thumbnails(self._base.unique_id, older_than)
+        await self._base.purge_stored_thumbnails(older_than)
 
     def get_sensitivity_presets(self):
         """Get formatted sensitivity presets."""

@@ -3,14 +3,10 @@ import asyncio
 import datetime
 
 # import logging
-from typing import cast
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
-from homeassistant.components.media_source.const import DOMAIN as MEDIA_SOURCE_DOMAIN
 
-from .const import EVENT_DATA_RECEIVED, DOMAIN
 from .entity import ReolinkEntity
-from .typings import ReolinkMediaSourceHelper
 
 # _LOGGER = logging.getLogger(__name__)
 
@@ -104,16 +100,7 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
 
         if self._event_state:
             self._last_motion = datetime.datetime.now()
-            media_source: ReolinkMediaSourceHelper = cast(
-                dict, self.hass.data.get(MEDIA_SOURCE_DOMAIN, {})
-            ).get(DOMAIN, None)
-            if media_source and self._base.api.hdd_info:
-                # we spin off the motion capture task, ideally we want it to be at
-                # the same time as the motion event, but we do not want to block
-                # anything and a few microseconds off should not hurt
-                self.hass.async_add_job(
-                    media_source.async_motion_snapshot, self._last_motion, self._base
-                )
+            await self._base.motion_snapshot(self._last_motion)
         else:
             if self._base.motion_off_delay > 0:
                 await asyncio.sleep(self._base.motion_off_delay)

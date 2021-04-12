@@ -1,10 +1,14 @@
 """This component updates the camera API and subscription."""
-from datetime import datetime
 import logging
+import os
 import re
-from typing import Awaitable, List, Optional, Tuple
 
-from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR
+import datetime as dt
+import tempfile
+from typing import Dict, Optional
+
+import base64
+
 from homeassistant.const import (
     CONF_HOST,
     CONF_PASSWORD,
@@ -14,14 +18,12 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.network import get_url
-from homeassistant.helpers.entity_registry import (
-    async_entries_for_config_entry,
-    async_get_registry as async_get_entity_registry,
-)
+from homeassistant.helpers.storage import Store
+import homeassistant.util.dt as dt_util
 
 from reolink.camera_api import Api
 from reolink.subscription_manager import Manager
-from reolink.typings import SearchStatus, SearchFile
+from reolink.typings import SearchTime
 
 from .const import (
     BASE,
@@ -43,9 +45,12 @@ from .const import (
     DOMAIN,
     PUSH_MANAGER,
     SESSION_RENEW_THRESHOLD,
+    THUMBNAIL_EXTENSION,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+STORAGE_VERSION = 1
 
 
 class ReolinkBase:
@@ -91,8 +96,10 @@ class ReolinkBase:
         )
 
         self._hass = hass
+        self.async_functions = list()
         self.sync_functions = list()
         self.motion_detection_state = True
+        self._thumbnail_cache: Dict[dt.datetime, bytes] = dict()
 
         if CONF_MOTION_OFF_DELAY not in options:
             self.motion_off_delay = DEFAULT_MOTION_OFF_DELAY
@@ -109,6 +116,11 @@ class ReolinkBase:
         else:
             self.playback_thumbnails: bool = options[CONF_PLAYBACK_THUMBNAILS]
 
+        if CONF_THUMBNAIL_PATH not in options:
+            self._thumbnail_path = None
+        else:
+            self._thumbnail_path: str = options[CONF_THUMBNAIL_PATH]
+
     @property
     def name(self):
         """Create the device name."""
@@ -117,8 +129,8 @@ class ReolinkBase:
     @property
     def unique_id(self):
         """Create the unique ID, base for all entities."""
-        id = self._api.mac_address.replace(":", "")
-        return f"{id}-{self.channel}"
+        uid = self._api.mac_address.replace(":", "")
+        return f"{uid}-{self.channel}"
 
     @property
     def event_id(self):
@@ -155,6 +167,8 @@ class ReolinkBase:
             return False
 
         await self._api.is_admin()
+        if self.playback_thumbnails and self._api.hdd_info:
+            self._hass.async_add_job(self._load_events)
         return True
 
     async def set_channel(self, channel):
@@ -192,14 +206,130 @@ class ReolinkBase:
     async def stop(self):
         """Disconnect the API and deregister the event listener."""
         await self.disconnect_api()
+        await self._save_thumbnails()
+        for func in self.async_functions:
+            await func()
         for func in self.sync_functions:
             await self._hass.async_add_executor_job(func)
 
     async def send_search(
-        self, start: datetime, end: datetime, only_status: bool = False
+        self, start: dt.datetime, end: dt.datetime, only_status: bool = False
     ):
         """ Call the API of the camera device to search for VoDs """
         return await self._api.send_search(start, end, only_status)
+
+    @property
+    def thumbnail_path(self):
+        """ Thumbnail storage location """
+        if not self._thumbnail_path:
+            self._thumbnail_path = self._hass.config.path(f"{DOMAIN}/{self.unique_id}")
+        return self._thumbnail_path
+
+    async def _save_thumbnails(self):
+        events = dict()
+        for date in self._thumbnail_cache:
+            events[str(date.timestamp())] = base64.b64encode(
+                self._thumbnail_cache[date]
+            ).decode("utf-8")
+
+        if len(events) < 1:
+            return
+        _LOGGER.debug("Commiting motion captures")
+        store = Store(self._hass, STORAGE_VERSION, f"{DOMAIN}/{self.unique_id}.motion")
+        await store.async_save(events)
+
+    async def _load_events(self):
+        store = Store(self._hass, STORAGE_VERSION, f"{DOMAIN}/{self.unique_id}.motion")
+        events: Dict[str, str] = await store.async_load()
+        if events:
+            for event_id in events:
+                if event_id in self._thumbnail_cache:
+                    continue
+                date = dt.datetime.fromtimestamp(float(event_id), dt_util.now().tzinfo)
+                self._thumbnail_cache[date] = base64.b64decode(
+                    events[event_id].encode("utf-8")
+                )
+        await store.async_remove()
+
+    async def motion_snapshot(self, system_now: dt.datetime):
+        """ Capture and store motion snapshot for pairing with VoD later """
+        if not self.playback_thumbnails or not self._api.hdd_info:
+            return
+
+        # we spin off the motion capture task, ideally we want it to be at
+        # the same time as the motion event, but we do not want to block
+        # anything and a few microseconds off should not hurt
+        return self._hass.async_create_task(self._motion_snapshot(system_now))
+
+    async def _motion_snapshot(self, system_now: dt.datetime):
+        _LOGGER.debug("Motion capture for %s", self.unique_id)
+        # make sure datetime is not naieve
+        self._thumbnail_cache[
+            system_now.replace(tzinfo=dt_util.now().tzinfo)
+        ] = await self._api.get_snapshot()
+
+    async def commit_thumbnails(
+        self,
+        start: Optional[dt.datetime] = None,
+        end: Optional[dt.datetime] = None,
+    ):
+        """ Commit any in memory snapshots to thumbnail storage """
+
+        if end is None:
+            end = dt_util.now()
+        if start is None:
+            start = min(self._thumbnail_cache.keys())
+
+        status, files = await self._api.send_search(start, end)
+
+        cache_iter = iter(self._thumbnail_cache)
+        date = next(cache_iter, None)
+
+        save = dict()
+        purge = list()
+        if not date is None:
+            _LOGGER.debug("syncing motion captures")
+            for file in files:
+                end = searchtime_to_datetime(file["EndTime"], end.tzinfo)
+                start = searchtime_to_datetime(file["StartTime"], end.tzinfo)
+                while date is not None and start > date:
+                    date = next(cache_iter, None)
+
+                if date is None:
+                    _LOGGER.debug("ran out of motion events")
+                    break
+
+                if end < date:
+                    continue
+
+                _LOGGER.debug("found motion event")
+                purge.append(date)
+                event_id = str(start.timestamp())
+                if event_id not in save:
+                    save[event_id] = self._thumbnail_cache[date]
+
+        task = None
+        if len(save) > 0:
+            task = self._hass.async_create_task(
+                self._hass.async_add_executor_job(_save_thumbnails),
+                self.thumbnail_path,
+                save,
+            )
+        if len(purge) > 0:
+            for date in purge:
+                del self._thumbnail_cache[date]
+        return (status, files, task)
+
+    async def emit_search_results(
+        self,
+        bus_event_id: str,
+        start: Optional[dt.datetime] = None,
+        end: Optional[dt.datetime] = None,
+    ):
+        """ Run search and emit VoD results to event """
+
+    async def purge_stored_thumbnails(self, after: Optional[dt.datetime] = None):
+        """ Cleanup thumbnail folder removing old thumbnails """
 
 
 class ReolinkPush:
@@ -367,3 +497,39 @@ async def get_event_by_webhook(hass: HomeAssistant, webhook_id):
         if wid == webhook_id:
             event_id = info["name"]
             return event_id
+
+
+def searchtime_to_datetime(self: SearchTime, timezone: dt.tzinfo):
+    """ Convert SearchTime to datetime """
+    return dt.datetime(
+        self["year"],
+        self["mon"],
+        self["day"],
+        self["hour"],
+        self["min"],
+        self["sec"],
+        tzinfo=timezone,
+    )
+
+
+def _save_thumbnails(path, save: Dict[str, bytes]):
+    if not os.path.isdir(path):
+        os.makedirs(path)
+
+    for name in save:
+        temp_filename = ""
+        filename = os.path.join(path, f"{name}.{THUMBNAIL_EXTENSION}")
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="wb", dir=path, delete=False
+            ) as fdesc:
+                temp_filename = fdesc.name
+                fdesc.write(save[name])
+            os.chmod(temp_filename, 0o644)
+            os.replace(temp_filename, filename)
+        finally:
+            if os.path.exists(temp_filename):
+                try:
+                    os.remove(temp_filename)
+                except OSError as err:
+                    _LOGGER.error("Thumbnail replacement cleanup failed: %s", err)
