@@ -16,7 +16,7 @@ from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, EVENT_HOMEASSISTANT
 from homeassistant.components.http import current_request
 from homeassistant.components.http.const import KEY_HASS_REFRESH_TOKEN_ID
 
-from homeassistant.core import Context, HomeAssistant, callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.storage import Store
 
 import homeassistant.util.dt as dt_utils
@@ -139,7 +139,7 @@ class ReolinkMediaSource(MediaSource):
             camera_id, typings.ReolinkMediaSourceCacheEntry(entry_id)
         )
 
-    async def _init(self, event):
+    async def _init(self):  # , event):
         data: Dict[str, Dict[str, bytes]] = await self._motion_store.async_load()
         if data:
             _LOGGER.debug("Loading saved motion thumbnails... %s", data)
@@ -164,7 +164,7 @@ class ReolinkMediaSource(MediaSource):
                 if cache:
                     cache.thumbnail_path = cconfig["thumbnail_path"]
 
-    async def _on_stop(self, event):
+    async def _on_stop(self):  # , event):
         data: Optional[Dict[str, Dict[str, bytes]]] = None
         for camera_id in self._cache:
             for event_id in self._cache[camera_id].events:
@@ -396,10 +396,6 @@ class ReolinkMediaSource(MediaSource):
         if not media.can_expand:
             return media
 
-        # TODO: the cache is one way so over time it can grow and have invalid
-        #       records, the code should be expanded to invalidate/expire
-        #       entries
-
         if not cache:
             media.children = create_root_children()
             return media
@@ -607,7 +603,11 @@ class ReolinkMediaSource(MediaSource):
                 cache.thumbnail_path
                 and cache.thumbnail_path == self._get_default_thumb_path(camera_id)
             ):
-                """ move existing thumbnails from default folder """
+                self.hass.async_create_task(
+                    self.hass.async_run_job(
+                        _move_thumbnails, cache.thumbnail_path, thumbnail_path
+                    )
+                )
 
             cache.thumbnail_path = thumbnail_path
         else:
@@ -752,6 +752,11 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
             return web.Response(body=event.thumbnail, content_type=DEFAULT_CONTENT_TYPE)
 
         raise web.HTTPInternalServerError()
+
+
+def _move_thumbnails(source: str, target: str):
+    for thumb in os.listdir(source):
+        os.rename(thumb, target)
 
 
 @callback
