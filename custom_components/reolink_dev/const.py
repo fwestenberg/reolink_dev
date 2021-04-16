@@ -9,8 +9,8 @@ PUSH_MANAGER = "push_manager"
 SESSION_RENEW_THRESHOLD = 300
 MEDIA_SOURCE = "media_source"
 THUMBNAIL_VIEW = "thumbnail_view"
-
-EVENT_VOD_DATA = "reolink_dev-vod-event"
+SHORT_TOKENS = "short_tokens"
+LONG_TOKENS = "long_tokens"
 
 CONF_STREAM = "stream"
 CONF_PROTOCOL = "protocol"
@@ -42,3 +42,6 @@ SERVICE_QUERY_VOD = "query_vods"
 SERVICE_CLEANUP_THUMBNAILS = "cleanup_thumbnails"
 
 THUMBNAIL_EXTENSION = "jpg"
+
+THUMBNAIL_URL = "/api/" + DOMAIN + "/media_proxy/{camera_id}/{event_id}.jpg"
+VOD_URL = "/api/" + DOMAIN + "/vod/{camera_id}/{event_id}"

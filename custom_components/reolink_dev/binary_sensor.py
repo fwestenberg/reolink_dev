@@ -30,6 +30,7 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
 
         self._available = False
         self._event_state = False
+        self._last_event_state = False
         self._last_motion = datetime.datetime.min
 
     @property
@@ -90,6 +91,7 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
             return
 
         try:
+            self._last_event_state = bool(self._event_state)
             self._event_state = event.data["motion"]
         except KeyError:
             return
@@ -100,7 +102,9 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
 
         if self._event_state:
             self._last_motion = datetime.datetime.now()
-            await self._base.motion_snapshot(self._last_motion)
+            # only capture snap on motion change, since we get multiple motion events
+            if not self._last_event_state:
+                await self._base.motion_snapshot(self._last_motion)
         else:
             if self._base.motion_off_delay > 0:
                 await asyncio.sleep(self._base.motion_off_delay)

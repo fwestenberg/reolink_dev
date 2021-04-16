@@ -2,7 +2,6 @@
 import asyncio
 from datetime import datetime
 import logging
-from typing import Optional
 
 import voluptuous as vol
 
@@ -16,7 +15,6 @@ from homeassistant.helpers.aiohttp_client import (
 )
 
 from .const import (
-    EVENT_VOD_DATA,
     SERVICE_PTZ_CONTROL,
     SERVICE_QUERY_VOD,
     SERVICE_SET_BACKLIGHT,
@@ -72,7 +70,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
             vol.Optional("speed"): cv.positive_int,
         },
         SERVICE_PTZ_CONTROL,
-        SUPPORT_PTZ,
+        [SUPPORT_PTZ],
     )
     platform.async_register_entity_service(
         SERVICE_COMMIT_THUMBNAILS,
@@ -81,7 +79,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
             vol.Optional("end"): cv.datetime,
         },
         SERVICE_COMMIT_THUMBNAILS,
-        SUPPORT_PLAYBACK,
+        [SUPPORT_PLAYBACK],
     )
     platform.async_register_entity_service(
         SERVICE_CLEANUP_THUMBNAILS,
@@ -89,16 +87,17 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
             vol.Optional("older_than"): cv.datetime,
         },
         SERVICE_CLEANUP_THUMBNAILS,
-        SUPPORT_PLAYBACK,
+        [SUPPORT_PLAYBACK],
     )
     platform.async_register_entity_service(
         SERVICE_QUERY_VOD,
         {
+            vol.Required("event_id"): cv.string,
             vol.Optional("start"): cv.datetime,
             vol.Optional("end"): cv.datetime,
         },
         SERVICE_QUERY_VOD,
-        SUPPORT_PLAYBACK,
+        [SUPPORT_PLAYBACK],
     )
 
     async_add_devices([camera])
@@ -111,6 +110,7 @@ class ReolinkCamera(ReolinkEntity, Camera):
         """Initialize a Reolink camera."""
         ReolinkEntity.__init__(self, hass, config)
         Camera.__init__(self)
+        self._entry_id = config.entry_id
 
         # self._ffmpeg = self._hass.data[DATA_FFMPEG]
         # self._last_image = None
@@ -220,29 +220,30 @@ class ReolinkCamera(ReolinkEntity, Camera):
             command=self._ptz_commands[command], **kwargs
         )
 
-    async def commit_thumbnails(self, start, end):
+    async def commit_thumbnails(self, **kwargs):
         """ Pass Sync command to media source """
         if not self.playback_support:
             _LOGGER.error("Video Playback is not supported on this device")
             return
+        await self._base.commit_thumbnails(**kwargs)
 
-        await self._base.commit_thumbnails(start, end)
-
-    async def query_vods(self, start, end):
+    async def query_vods(self, event_id, **kwargs):
         """ Query camera for VoDs and emit results """
         if not self.playback_support:
             _LOGGER.error("Video Playback is not supported on this device")
             return
 
-        await self._base.emit_search_results(EVENT_VOD_DATA, start, end)
+        await self._base.emit_search_results(
+            event_id, self._entry_id, context=self._context, **kwargs
+        )
 
-    async def cleanup_thumbnails(self, older_than: Optional[datetime] = None):
+    async def cleanup_thumbnails(self, **kwargs):
         """ Cleanup Thumbnails """
         if not self.playback_support:
             _LOGGER.error("Video Playback is not supported on this device")
             return
 
-        await self._base.purge_stored_thumbnails(older_than)
+        await self._base.purge_stored_thumbnails(**kwargs)
 
     def get_sensitivity_presets(self):
         """Get formatted sensitivity presets."""

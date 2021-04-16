@@ -2,14 +2,16 @@
 import datetime as dt
 import logging
 import os
+import secrets
 from typing import Dict, Optional, Tuple, cast
 from aiohttp import web
 
 from dateutil import relativedelta
-from homeassistant.components.http.auth import async_sign_path
 
-from homeassistant.components.http import current_request
-from homeassistant.components.http.const import KEY_HASS_REFRESH_TOKEN_ID
+# from homeassistant.components.http.auth import async_sign_path
+
+# from homeassistant.components.http import current_request
+# from homeassistant.components.http.const import KEY_HASS_REFRESH_TOKEN_ID
 
 from homeassistant.core import HomeAssistant, callback
 
@@ -34,16 +36,20 @@ from homeassistant.components.media_source.models import (
 
 from homeassistant.components.stream import create_stream
 
+from homeassistant.helpers.event import async_call_later
+
 from .base import ReolinkBase, searchtime_to_datetime
 
-from . import typings
+# from . import typings
 
 from .const import (
     BASE,
     DOMAIN,
-    DOMAIN_DATA,
     MEDIA_SOURCE,
+    SHORT_TOKENS,
     THUMBNAIL_EXTENSION as EXTENSION,
+    THUMBNAIL_URL,
+    VOD_URL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,10 +59,7 @@ MIME_TYPE = "application/x-mpegURL"
 
 NAME = "Reolink IP Camera"
 
-THUMBNAIL_URL = "/api/" + DOMAIN + "/media_proxy/{camera_id}/{event_id}.jpg"
-VOD_URL = "/api/" + DOMAIN + "/vod/{camera_id}/{event_id}"
 STORAGE_VERSION = 1
-THUMBNAIL_FOLDER = DOMAIN + ".pbt"
 
 
 class IncompatibleMediaSource(MediaSourceError):
@@ -69,7 +72,7 @@ async def async_get_media_source(hass: HomeAssistant):
     _LOGGER.debug("Creating REOLink Media Source")
     source = ReolinkMediaSource(hass)
     hass.http.register_view(ReolinkSourceThumbnailView(hass))
-    hass.http.register_view(ReolinkSourceVODView(hass))
+    # hass.http.register_view(ReolinkSourceVODView(hass))
 
     return source
 
@@ -85,51 +88,24 @@ class ReolinkMediaSource(MediaSource):
         self.hass = hass
         self._file_cache: Dict[str, str] = dict()
 
-    # def _walk_entries(self):
-    #     data: Dict[str, dict] = self.hass.data[self.domain]
-    #     for entry_id in data:
-    #         if (
-    #             not isinstance(data[entry_id], dict)
-    #             or not BASE in data[entry_id]
-    #             or not isinstance(data[entry_id][BASE], ReolinkBase)
-    #         ):
-    #             continue
-    #         yield (entry_id, cast(ReolinkBase, data[entry_id][BASE]))
+    @property
+    def _short_security_token(self):
+        data: dict = cast(dict, self.hass.data.get(DOMAIN)).setdefault(MEDIA_SOURCE, {})
+        token: str = data.get(SHORT_TOKENS)
+        if not token:
+            token = data.setdefault(SHORT_TOKENS, secrets.token_hex())
+            async_call_later(self.hass, 3600, self._clear_short_securty_token)
+        return token
 
-    # def _get_or_create_cache_entry(
-    #     self,
-    #     entry_id: Optional[str] = None,
-    #     camera_id: Optional[str] = None,
-    #     base: Optional[ReolinkBase] = None,
-    # ):
-    #     if camera_id and camera_id in self._cache:
-    #         _LOGGER.debug("Found cache for camera: %s", camera_id)
-    #         return self._cache[camera_id]
-
-    #     if not (entry_id and base):
-    #         if entry_id:
-    #             entry = cast(
-    #                 dict, cast(dict, self.hass.data[self.domain]).get(entry_id)
-    #             )
-    #             base = entry[BASE] if entry else None
-    #         else:
-    #             (entry_id, base) = next(
-    #                 (
-    #                     e
-    #                     for e in self._walk_entries()
-    #                     if e[1] == base or e[1].unique_id == camera_id
-    #                 ),
-    #                 (None, None),
-    #             )
-
-    #     if not entry_id or not base:
-    #         _LOGGER.debug("Could not find matching camera entry: %s", entry_id)
-    #         return None
-
-    #     camera_id = base.unique_id
-    #     return self._cache.setdefault(
-    #         camera_id, typings.ReolinkMediaSourceCacheEntry(entry_id)
-    #     )
+    def _clear_short_securty_token(self):
+        data: dict = self.hass.data.get(DOMAIN)
+        if not data:
+            return
+        data = data.get(MEDIA_SOURCE)
+        if not data:
+            return
+        if SHORT_TOKENS in data:
+            del data[SHORT_TOKENS]
 
     async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
         """Resolve a media item to a playable item."""
@@ -238,11 +214,18 @@ class ReolinkMediaSource(MediaSource):
 
             if thumbnail:
                 url = THUMBNAIL_URL.format(camera_id=camera_id, event_id=event_id)
-                refresh_token_id = current_request[KEY_HASS_REFRESH_TOKEN_ID]
-                # leave expiration 30 seconds?
-                media.thumbnail = async_sign_path(
-                    self.hass, refresh_token_id, url, dt.timedelta(seconds=30)
-                )
+                # cannot do authsign as we are in a websocket and isloated from auth and context
+                # we will continue to use custom tokens
+                # request = current_request.get()
+                # refresh_token_id = request.get(KEY_HASS_REFRESH_TOKEN_ID)
+                # if not refresh_token_id:
+                #     _LOGGER.debug("no token? %s", list(request.keys()))
+
+                # # leave expiration 30 seconds?
+                # media.thumbnail = async_sign_path(
+                #     self.hass, refresh_token_id, url, dt.timedelta(seconds=30)
+                # )
+                media.thumbnail = f"{url}?token={self._short_security_token}"
 
             if not media.can_play and not media.can_expand:
                 _LOGGER.debug(
@@ -309,6 +292,9 @@ class ReolinkMediaSource(MediaSource):
             )
 
             _, files, save = await base.commit_thumbnails(start_date, end_date)
+            if save:
+                _LOGGER.debug("syncing thumbnails to disk")
+                await save
 
             for file in files:
                 end_date = searchtime_to_datetime(file["EndTime"], end_date.tzinfo)
@@ -328,9 +314,6 @@ class ReolinkMediaSource(MediaSource):
                 children.append(child)
 
             children.reverse()
-
-            if save:
-                await save
 
             return children
 
@@ -354,182 +337,6 @@ class ReolinkMediaSource(MediaSource):
 
         return media
 
-    # async def _get_events(
-    #     self,
-    #     camera_id: str,
-    #     base: ReolinkBase,
-    #     start: dt.datetime,
-    #     end: dt.datetime,
-    #     tasks: list = None,
-    # ):
-    #     cache = self._cache[camera_id]
-
-    #     _, files = await base.send_search(start, end)
-
-    #     if not files is None:
-    #         for file in files:
-    #             dto = file["EndTime"]
-    #             end = dt.datetime(
-    #                 dto["year"],
-    #                 dto["mon"],
-    #                 dto["day"],
-    #                 dto["hour"],
-    #                 dto["min"],
-    #                 dto["sec"],
-    #                 0,
-    #                 end.tzinfo,
-    #             )
-    #             dto = file["StartTime"]
-    #             start = dt.datetime(
-    #                 dto["year"],
-    #                 dto["mon"],
-    #                 dto["day"],
-    #                 dto["hour"],
-    #                 dto["min"],
-    #                 dto["sec"],
-    #                 0,
-    #                 end.tzinfo,
-    #             )
-    #             event_id = str(start.timestamp())
-    #             event = cache.events.setdefault(
-    #                 event_id, typings.ReolinkMediaSourceVodEntry(start)
-    #             )
-    #             if event.incomplete:
-    #                 event.start = start
-    #                 event.end = end
-    #                 event.file = file["name"]
-    #                 if not event.thumbnail and tasks:
-    #                     drop = []
-    #                     for _event_id in cache.events:
-    #                         _event = cache.events[_event_id]
-    #                         if (
-    #                             not _event.incomplete
-    #                             or _event.start < start
-    #                             or _event.start > end
-    #                         ):
-    #                             continue
-    #                         drop.append(_event_id)
-    #                         if (
-    #                             isinstance(_event.thumbnail, bytes)
-    #                             and not event.thumbnail
-    #                         ):
-    #                             event.thumbnail = _event.thumbnail
-    #                             tasks.append(
-    #                                 self.hass.async_create_task(
-    #                                     self.hass.async_add_executor_job(
-    #                                         self._save_thumbnail, camera_id, _event_id
-    #                                     )
-    #                                 )
-    #                             )
-    #                     if drop:
-    #                         for _event_id in drop:
-    #                             cache.events.pop(_event_id)
-
-    #             if not event.thumbnail is None and base.playback_thumbnails:
-    #                 thumbnail = os.path.join(cache.thumbnail_path, event_id) + EXTENSION
-    #                 if os.path.isfile(thumbnail):
-    #                     event.thumbnail = thumbnail
-    #                 elif tasks:
-    #                     event.thumbnail = ""
-
-    #             yield (event_id, event)
-
-    # async def async_synchronize_thumbnails(
-    #     self,
-    #     camera_id: str,
-    #     start: Optional[dt.datetime] = None,
-    #     end: Optional[dt.datetime] = None,
-    # ):
-    #     """ Synchronize in memory thumbnails with VoDs """
-    #     cache = self._cache.get(camera_id, None)
-    #     if not cache:
-    #         return
-    #     if not start:
-    #         start = next(
-    #             (
-    #                 cache.events[e].start
-    #                 for e in cache.events
-    #                 if cache.events[e].incomplete
-    #             ),
-    #             None,
-    #         )
-    #     if start:
-    #         if not end:
-    #             end = dt_utils.now()
-
-    #         jobs = []
-    #         async for _ in self._get_events(
-    #             camera_id,
-    #             self.hass.data[self.domain][cache.entry_id][BASE],
-    #             start,
-    #             end,
-    #             jobs,
-    #         ):
-    #             pass
-
-    #         await gather(jobs)
-
-    # async def async_query_vods(
-    #     self,
-    #     camera_id: str,
-    #     start: Optional[dt.datetime] = None,
-    #     end: Optional[dt.datetime] = None,
-    #     thumbnail_path: Optional[str] = None,
-    # ):
-    #     """ Query camera for VoDs and emit them as events """
-    #     cache = self._cache.get(camera_id, None)
-    #     if not cache:
-    #         return
-    #     base: ReolinkBase = self.hass.data[self.domain][cache.entry_id][BASE]
-    #     if not end:
-    #         end = dt_utils.now()
-    #     if not start:
-    #         start = dt.datetime.combine(end.date().replace(day=1), dt.time.min)
-    #         if base.playback_months > 1:
-    #             start -= relativedelta.relativedelta(months=int(base.playback_months))
-    #     if thumbnail_path:
-    #         if not os.path.isdir(thumbnail_path):
-    #             os.makedirs(thumbnail_path)
-
-    #         if (
-    #             cache.thumbnail_path
-    #             and cache.thumbnail_path == self._get_default_thumb_path(camera_id)
-    #         ):
-    #             self.hass.async_create_task(
-    #                 self.hass.async_run_job(
-    #                     _move_thumbnails, cache.thumbnail_path, thumbnail_path
-    #                 )
-    #             )
-
-    #         cache.thumbnail_path = thumbnail_path
-    #     else:
-    #         thumbnail_path = (
-    #             cache.thumbnail_path
-    #             if cache.thumbnail_path
-    #             else self._get_default_thumb_path(camera_id)
-    #         )
-
-    #     async for (event_id, event) in self._get_events(camera_id, base, start, end):
-    #         if not event.token:
-    #             event.token = secrets.token_hex()
-    #         url = (
-    #             VOD_URL.format(camera_id=camera_id, event_id=event_id)
-    #             + "?token="
-    #             + parse.quote_plus(event.token)
-    #         )
-    #         self.hass.bus.async_fire(
-    #             EVENT_VOD_DATA,
-    #             {
-    #                 "url": url,
-    #                 "event": {
-    #                     "start": event.start,
-    #                     "end": event.end,
-    #                     "file": event.file,
-    #                 },
-    #                 "thumbnail": f"{thumbnail_path}/{event_id}.{EXTENSION}",
-    #             },
-    #         )
-
 
 class ReolinkSourceVODView(HomeAssistantView):
     """ VOD security handler """
@@ -552,38 +359,26 @@ class ReolinkSourceVODView(HomeAssistantView):
         if not camera_id or not event_id:
             raise web.HTTPNotFound()
 
-        cache = cast(
-            Dict[str, typings.ReolinkMediaSourceCacheEntry],
-            cast(dict, self.hass.data[DOMAIN_DATA]).get(MEDIA_SOURCE, {}),
-        ).get(camera_id, None)
-
-        if not cache:
+        data: Dict[str, dict] = self.hass.data[DOMAIN]
+        base: ReolinkBase = (
+            data[camera_id].get(BASE, None) if camera_id in data else None
+        )
+        if not base:
             _LOGGER.debug("camera %s not found", camera_id)
             raise web.HTTPNotFound()
 
-        event = cache.events.get(event_id, None)
-        if not event:
-            _LOGGER.debug("camera %s, event %s not found", camera_id, event_id)
-            raise web.HTTPNotFound()
+        if not self.requires_auth:
+            token: str = request.query.get("token")
+            if not token:
+                _LOGGER.warning("VoD request with token is required")
+                raise web.HTTPNotFound()
+            if token != base.security_token:
+                _LOGGER.warning("VoD request with invalid token")
+                raise web.HTTPNotFound()
 
-        token = request.query.get("token")
-        if (token and event.token != token) or (not token and not self.requires_auth):
-            _LOGGER.debug(
-                "invalid or missing token %s for camera %s, event %s",
-                token,
-                camera_id,
-                event_id,
-            )
-            raise web.HTTPNotFound()
-
-        _LOGGER.debug("vod %s, %s", camera_id, event_id)
-        base: ReolinkBase = (
-            cast(dict, self.hass.data[DOMAIN].get(cache.entry_id, {})).get(BASE, None)
-            if cache
-            else None
-        )
-        url = await base.api.get_vod_source(event.file)
-        return web.HTTPTemporaryRedirect(url)
+        # url = await base.api.get_vod_source(event.file)
+        # return web.HTTPTemporaryRedirect(url)
+        raise web.HTTPNotFound()
 
 
 class ReolinkSourceThumbnailView(HomeAssistantView):
@@ -591,6 +386,7 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
 
     url = THUMBNAIL_URL
     name = "api:" + DOMAIN + ":image"
+    requires_auth = False
     cors_allowed = True
 
     def __init__(self, hass: HomeAssistant):
@@ -606,12 +402,26 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
     ) -> web.Response:
         """ start a GET request. """
 
+        if not self.requires_auth:
+            token: str = request.query.get("token")
+            if not token:
+                _LOGGER.warning("Thumbnail request with token is required")
+                raise web.HTTPNotFound()
+            data: dict = self.hass.data.get(DOMAIN)
+            data = data.get(MEDIA_SOURCE) if data and MEDIA_SOURCE in data else None
+            token_cmp = (
+                data.get(SHORT_TOKENS) if data and SHORT_TOKENS in data else None
+            )
+            if token != token_cmp:
+                _LOGGER.warning("Thumbnail request with invalid token")
+                raise web.HTTPNotFound()
+
         if not camera_id or not event_id:
             raise web.HTTPNotFound()
 
         data: Dict[str, dict] = self.hass.data[DOMAIN]
         base: ReolinkBase = (
-            data[camera_id].get(BASE, None) if camera_id in data[camera_id] else None
+            data[camera_id].get(BASE, None) if camera_id in data else None
         )
         if not base:
             _LOGGER.debug("camera %s not found", camera_id)

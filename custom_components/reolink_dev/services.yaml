@@ -106,11 +106,6 @@ commit_thumbnails:
       description: >-
         End of date range, if not provided will use the current date and time
       example: "1/31/2021"
-    path:
-      description: >-
-        Change the default thumbnail path to the specified local path, this will become
-        the future target for all new thumbails generated and must be unique per camera
-      example: "/media/cameras/vods/frontdoor"
 
 cleanup_thumbnails:
   name: Cleanup Camera VoD playback thumbnails
@@ -146,6 +141,9 @@ query_vods:
     entity_id:
       description: Name(s) of the Reolink camera entity to execute the command on.
       example: 'camera.frontdoor'
+    event_id:
+      description: Event to emit as
+      example: 'VoD-query'
     start:
       description: >-
         Start of date range, if not provided will use the month playback range
