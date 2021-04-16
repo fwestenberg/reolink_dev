@@ -6,6 +6,8 @@ import secrets
 from typing import Dict, Optional, Tuple, cast
 from aiohttp import web
 
+from urllib.parse import quote_plus, unquote_plus
+
 from dateutil import relativedelta
 
 # from homeassistant.components.http.auth import async_sign_path
@@ -72,7 +74,7 @@ async def async_get_media_source(hass: HomeAssistant):
     _LOGGER.debug("Creating REOLink Media Source")
     source = ReolinkMediaSource(hass)
     hass.http.register_view(ReolinkSourceThumbnailView(hass))
-    # hass.http.register_view(ReolinkSourceVODView(hass))
+    hass.http.register_view(ReolinkSourceVODView(hass))
 
     return source
 
@@ -86,7 +88,6 @@ class ReolinkMediaSource(MediaSource):
         """Initialize Reolink source."""
         super().__init__(DOMAIN)
         self.hass = hass
-        self._file_cache: Dict[str, str] = dict()
 
     @property
     def _short_security_token(self):
@@ -94,10 +95,10 @@ class ReolinkMediaSource(MediaSource):
         token: str = data.get(SHORT_TOKENS)
         if not token:
             token = data.setdefault(SHORT_TOKENS, secrets.token_hex())
-            async_call_later(self.hass, 3600, self._clear_short_securty_token)
+            async_call_later(self.hass, 3600, self._clear_short_security_token)
         return token
 
-    def _clear_short_securty_token(self):
+    def _clear_short_security_token(self):
         data: dict = self.hass.data.get(DOMAIN)
         if not data:
             return
@@ -117,9 +118,10 @@ class ReolinkMediaSource(MediaSource):
         if not base:
             raise BrowseError("Camera does not exist.")
 
-        file = self._file_cache.get(f"{camera_id}/{event_id}", "")
+        file = unquote_plus(event_id)
         if not file:
             raise BrowseError("Event does not exist.")
+        _LOGGER.debug("file = %s", file)
 
         url = await base.api.get_vod_source(file)
         _LOGGER.debug("Load VOD %s", url)
@@ -300,8 +302,8 @@ class ReolinkMediaSource(MediaSource):
                 end_date = searchtime_to_datetime(file["EndTime"], end_date.tzinfo)
                 start_date = searchtime_to_datetime(file["StartTime"], end_date.tzinfo)
                 event_id = str(start_date.timestamp())
-                evt_id = f"{camera_id}/{event_id}"
-                self._file_cache[evt_id] = file["name"]
+                evt_id = f"{camera_id}/{quote_plus(file['name'])}"
+                # self._file_cache[evt_id] = file["name"]
                 thumbnail = os.path.isfile(
                     f"{base.thumbnail_path}/{event_id}.{EXTENSION}"
                 )
@@ -376,9 +378,9 @@ class ReolinkSourceVODView(HomeAssistantView):
                 _LOGGER.warning("VoD request with invalid token")
                 raise web.HTTPNotFound()
 
-        # url = await base.api.get_vod_source(event.file)
-        # return web.HTTPTemporaryRedirect(url)
-        raise web.HTTPNotFound()
+        file = unquote_plus(event_id)
+        url = await base.api.get_vod_source(file)
+        return web.HTTPTemporaryRedirect(url)
 
 
 class ReolinkSourceThumbnailView(HomeAssistantView):
@@ -429,11 +431,6 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
 
         thumbnail = f"{base.thumbnail_path}/{event_id}.{EXTENSION}"
         return web.FileResponse(thumbnail)
-
-
-# def _move_thumbnails(source: str, target: str):
-#     for thumb in os.listdir(source):
-#         os.rename(thumb, target)
 
 
 @callback

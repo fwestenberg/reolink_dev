@@ -9,6 +9,7 @@ import tempfile
 from typing import Dict, Optional
 
 import base64
+from urllib.parse import quote_plus
 from dateutil.relativedelta import relativedelta
 
 from homeassistant.const import (
@@ -364,7 +365,7 @@ class ReolinkBase:
             start = searchtime_to_datetime(file["StartTime"], end.tzinfo)
             event_id = str(start.timestamp())
             url = (
-                VOD_URL.format(camera_id=camera_id, event_id=event_id)
+                VOD_URL.format(camera_id=camera_id, event_id=quote_plus(file["name"]))
                 + f"?token={self.security_token}"
             )
 
