@@ -4,11 +4,8 @@ import os
 import re
 
 import datetime as dt
-import secrets
-import tempfile
-from typing import Dict, Optional
+from typing import Optional
 
-import base64
 from urllib.parse import quote_plus
 from dateutil.relativedelta import relativedelta
 
@@ -20,22 +17,20 @@ from homeassistant.const import (
     CONF_USERNAME,
 )
 from homeassistant.core import Context, HomeAssistant
-from homeassistant.helpers.config_validation import datetime
 from homeassistant.helpers.network import get_url
-from homeassistant.helpers.storage import STORAGE_DIR, Store
+from homeassistant.helpers.storage import STORAGE_DIR
 import homeassistant.util.dt as dt_util
 
 from reolink.camera_api import Api
 from reolink.subscription_manager import Manager
 from reolink.typings import SearchTime
+from .typings import VoDEvent, VoDEventThumbnail
 
 from .const import (
     BASE,
     CONF_PLAYBACK_MONTHS,
-    CONF_PLAYBACK_THUMBNAILS,
     CONF_THUMBNAIL_PATH,
     DEFAULT_PLAYBACK_MONTHS,
-    DEFAULT_PLAYBACK_THUMBNAILS,
     EVENT_DATA_RECEIVED,
     CONF_CHANNEL,
     CONF_MOTION_OFF_DELAY,
@@ -50,6 +45,7 @@ from .const import (
     PUSH_MANAGER,
     SESSION_RENEW_THRESHOLD,
     THUMBNAIL_EXTENSION,
+    THUMBNAIL_URL,
     VOD_URL,
 )
 
@@ -104,8 +100,6 @@ class ReolinkBase:
         self.async_functions = list()
         self.sync_functions = list()
         self.motion_detection_state = True
-        self._thumbnail_cache: Dict[dt.datetime, bytes] = dict()
-        self._security_token: str = None
 
         if CONF_MOTION_OFF_DELAY not in options:
             self.motion_off_delay = DEFAULT_MOTION_OFF_DELAY
@@ -116,11 +110,6 @@ class ReolinkBase:
             self.playback_months = DEFAULT_PLAYBACK_MONTHS
         else:
             self.playback_months: int = options[CONF_PLAYBACK_MONTHS]
-
-        if CONF_PLAYBACK_THUMBNAILS not in options:
-            self.playback_thumbnails = DEFAULT_PLAYBACK_THUMBNAILS
-        else:
-            self.playback_thumbnails: bool = options[CONF_PLAYBACK_THUMBNAILS]
 
         if CONF_THUMBNAIL_PATH not in options:
             self._thumbnail_path = None
@@ -165,6 +154,19 @@ class ReolinkBase:
         """Return the API object."""
         return self._api
 
+    @property
+    def thumbnail_path(self):
+        """ Thumbnail storage location """
+        if not self._thumbnail_path:
+            self._thumbnail_path = self._hass.config.path(
+                f"{STORAGE_DIR}/{DOMAIN}/{self.unique_id}"
+            )
+        return self._thumbnail_path
+
+    def set_thumbnail_path(self, value):
+        """ Set custom thumbnail path"""
+        self._thumbnail_path = value
+
     async def connect_api(self):
         """Connect to the Reolink API and fetch initial dataset."""
         if not await self._api.get_settings():
@@ -173,8 +175,6 @@ class ReolinkBase:
             return False
 
         await self._api.is_admin()
-        if self.playback_thumbnails and self._api.hdd_info:
-            self._hass.async_add_job(self._load_events)
         return True
 
     async def set_channel(self, channel):
@@ -212,7 +212,6 @@ class ReolinkBase:
     async def stop(self):
         """Disconnect the API and deregister the event listener."""
         await self.disconnect_api()
-        await self._save_thumbnails()
         for func in self.async_functions:
             await func()
         for func in self.sync_functions:
@@ -223,121 +222,6 @@ class ReolinkBase:
     ):
         """ Call the API of the camera device to search for VoDs """
         return await self._api.send_search(start, end, only_status)
-
-    @property
-    def thumbnail_path(self):
-        """ Thumbnail storage location """
-        if not self._thumbnail_path:
-            self._thumbnail_path = self._hass.config.path(
-                f"{STORAGE_DIR}/{DOMAIN}/{self.unique_id}"
-            )
-        return self._thumbnail_path
-
-    async def _save_thumbnails(self):
-        events = dict()
-        for date in self._thumbnail_cache:
-            events[str(date.timestamp())] = base64.b64encode(
-                self._thumbnail_cache[date]
-            ).decode("utf-8")
-
-        if len(events) < 1:
-            return
-        _LOGGER.debug("Commiting motion captures")
-        store = Store(self._hass, STORAGE_VERSION, f"{DOMAIN}/{self.unique_id}.motion")
-        await store.async_save(events)
-
-    async def _load_events(self):
-        store = Store(self._hass, STORAGE_VERSION, f"{DOMAIN}/{self.unique_id}.motion")
-        events: Dict[str, str] = await store.async_load()
-        if events:
-            _LOGGER.debug("Loading motion captures")
-            for event_id in events:
-                if event_id in self._thumbnail_cache:
-                    continue
-                date = dt.datetime.fromtimestamp(float(event_id), dt_util.now().tzinfo)
-                self._thumbnail_cache[date] = base64.b64decode(
-                    events[event_id].encode("utf-8")
-                )
-        await store.async_remove()
-
-    async def motion_snapshot(self, system_now: dt.datetime):
-        """ Capture and store motion snapshot for pairing with VoD later """
-        if not self.playback_thumbnails or not self._api.hdd_info:
-            return
-
-        # we spin off the motion capture task, ideally we want it to be at
-        # the same time as the motion event, but we do not want to block
-        # anything and a few microseconds off should not hurt
-        return self._hass.async_create_task(self._motion_snapshot(system_now))
-
-    async def _motion_snapshot(self, system_now: dt.datetime):
-        # make sure datetime is not naieve
-        self._thumbnail_cache[
-            system_now.astimezone(dt_util.now().tzinfo)
-        ] = await self._api.get_snapshot()
-
-    async def commit_thumbnails(
-        self,
-        start: Optional[dt.datetime] = None,
-        end: Optional[dt.datetime] = None,
-    ):
-        """ Commit any in memory snapshots to thumbnail storage """
-
-        if end is None:
-            end = dt_util.now()
-        if start is None:
-            start = min(self._thumbnail_cache.keys())
-
-        status, files = await self._api.send_search(start, end)
-
-        cache_iter = iter(self._thumbnail_cache)
-        date = next(cache_iter, None)
-
-        save = dict()
-        purge = list()
-        if not date is None:
-            _LOGGER.debug("syncing motion captures, start: %s", date)
-            for file in files:
-                end = searchtime_to_datetime(file["EndTime"], end.tzinfo)
-                start = searchtime_to_datetime(file["StartTime"], end.tzinfo)
-                while date is not None and start > date:
-                    if not date in purge:
-                        purge.append(date)
-                    date = next(cache_iter, None)
-                    _LOGGER.debug("next cap: %s", date)
-
-                if date is None:
-                    _LOGGER.debug("ran out of motion events")
-                    break
-
-                if end < date:
-                    _LOGGER.debug("no match: %s < %s < %s", start, date, end)
-                    continue
-
-                _LOGGER.debug("found motion event")
-                purge.append(date)
-                event_id = str(start.timestamp())
-                if event_id not in save:
-                    save[event_id] = self._thumbnail_cache[date]
-
-        task = None
-        if len(save) > 0:
-            task = self._hass.async_add_executor_job(
-                _save_thumbnails,
-                self.thumbnail_path,
-                save,
-            )
-        if len(purge) > 0:
-            for date in purge:
-                del self._thumbnail_cache[date]
-        return (status, files, task)
-
-    @property
-    def security_token(self):
-        """ unique security token """
-        if not self._security_token:
-            self._security_token = secrets.token_hex()
-        return self._security_token
 
     async def emit_search_results(
         self,
@@ -356,18 +240,13 @@ class ReolinkBase:
             if self.playback_months > 1:
                 start -= relativedelta(months=int(self.playback_months))
 
-        _, files, save = await self.commit_thumbnails(start, end)
-        if save:
-            await save
+        _, files = await self._api.send_search(start, end)
 
         for file in files:
             end = searchtime_to_datetime(file["EndTime"], end.tzinfo)
             start = searchtime_to_datetime(file["StartTime"], end.tzinfo)
             event_id = str(start.timestamp())
-            url = (
-                VOD_URL.format(camera_id=camera_id, event_id=quote_plus(file["name"]))
-                + f"?token={self.security_token}"
-            )
+            url = VOD_URL.format(camera_id=camera_id, event_id=quote_plus(file["name"]))
 
             thumbnail = os.path.join(
                 self.thumbnail_path, f"{event_id}.{THUMBNAIL_EXTENSION}"
@@ -375,52 +254,20 @@ class ReolinkBase:
 
             self._hass.bus.fire(
                 bus_event_id,
-                {
-                    "url": url,
-                    "event": {
-                        "start": start,
-                        "end": end,
-                        "file": file["name"],
-                    },
-                    "thumbnail": {
-                        "exists": os.path.isfile(thumbnail),
-                        "path": thumbnail,
-                    },
-                },
+                VoDEvent(
+                    event_id,
+                    start,
+                    end - start,
+                    file["name"],
+                    url,
+                    VoDEventThumbnail(
+                        THUMBNAIL_URL.format(camera_id=camera_id, event_id=event_id),
+                        os.path.isfile(thumbnail),
+                        thumbnail,
+                    ),
+                ),
                 context=context,
             )
-
-    async def purge_stored_thumbnails(self, older_than: Optional[dt.datetime] = None):
-        """ Cleanup thumbnail folder removing old thumbnails """
-
-        _LOGGER.debug("purge @ %s", older_than)
-        if not older_than:
-            end = dt.datetime.combine(
-                dt_util.now().date(), dt.time.min, dt_util.now().tzinfo
-            )
-            start = dt.datetime.combine(end.date().replace(day=1), dt.time.min)
-            if self.playback_months > 1:
-                start -= relativedelta(months=int(self.playback_months))
-            search, _ = await self.send_search(start, end, True)
-            for entry in search:
-                day = next(
-                    (i for (i, e) in enumerate(entry["table"], start=1) if e == "1"),
-                    None,
-                )
-                if day is not None:
-                    end = dt.datetime(
-                        entry["year"], entry["mon"], day, tzinfo=dt_util.now().tzinfo
-                    )
-                    break
-            older_than = end
-
-        for date in list(self._thumbnail_cache.keys()):
-            if date < older_than:
-                del self._thumbnail_cache[date]
-
-        await self._hass.async_add_executor_job(
-            _purge_thumbnails, self.thumbnail_path, older_than
-        )
 
 
 class ReolinkPush:
@@ -601,38 +448,3 @@ def searchtime_to_datetime(self: SearchTime, timezone: dt.tzinfo):
         self["sec"],
         tzinfo=timezone,
     )
-
-
-def _save_thumbnails(path, save: Dict[str, bytes]):
-    _LOGGER.debug("commiting thumbnails to disk: %s, %s", path, save.keys())
-    if not os.path.isdir(path):
-        os.makedirs(path)
-
-    for name in save:
-        temp_filename = ""
-        filename = os.path.join(path, f"{name}.{THUMBNAIL_EXTENSION}")
-        try:
-            with tempfile.NamedTemporaryFile(
-                mode="wb", dir=path, delete=False
-            ) as fdesc:
-                temp_filename = fdesc.name
-                fdesc.write(save[name])
-            os.chmod(temp_filename, 0o644)
-            os.replace(temp_filename, filename)
-        finally:
-            if os.path.exists(temp_filename):
-                try:
-                    os.remove(temp_filename)
-                except OSError as err:
-                    _LOGGER.error("Thumbnail replacement cleanup failed: %s", err)
-
-
-def _purge_thumbnails(path: str, older_than: datetime):
-    _LOGGER.debug("purging thumbnails: %s @ %s", path, older_than)
-    for file in os.listdir(path):
-        (name, ext) = os.path.splitext(file)
-        if ext == THUMBNAIL_EXTENSION:
-            date = dt.datetime.fromtimestamp(float(name))
-            if date < older_than:
-                _LOGGER.debug("purging %s", file)
-                os.unlink(os.path.join(path, file))

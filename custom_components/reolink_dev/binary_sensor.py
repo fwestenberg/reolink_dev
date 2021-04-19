@@ -2,13 +2,13 @@
 import asyncio
 import datetime
 
-# import logging
+import logging
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 
 from .entity import ReolinkEntity
 
-# _LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 DEFAULT_DEVICE_CLASS = "motion"
 
@@ -102,11 +102,22 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
 
         if self._event_state:
             self._last_motion = datetime.datetime.now()
-            # only capture snap on motion change, since we get multiple motion events
-            if not self._last_event_state:
-                await self._base.motion_snapshot(self._last_motion)
         else:
             if self._base.motion_off_delay > 0:
                 await asyncio.sleep(self._base.motion_off_delay)
 
         self.async_schedule_update_ha_state()
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        attrs = super().extra_state_attributes
+
+        if self._state:
+            if attrs is None:
+                attrs = {}
+
+            attrs["bus_event_id"] = self._base.event_id
+
+        _LOGGER.debug("attrs: %s", attrs)
+        return attrs

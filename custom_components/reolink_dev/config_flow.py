@@ -20,13 +20,11 @@ from .const import (
     CONF_CHANNEL,
     CONF_MOTION_OFF_DELAY,
     CONF_PLAYBACK_MONTHS,
-    CONF_PLAYBACK_THUMBNAILS,
     CONF_PROTOCOL,
     CONF_STREAM,
     CONF_THUMBNAIL_PATH,
     DEFAULT_MOTION_OFF_DELAY,
     DEFAULT_PLAYBACK_MONTHS,
-    DEFAULT_PLAYBACK_THUMBNAILS,
     DEFAULT_PROTOCOL,
     DEFAULT_STREAM,
     DEFAULT_TIMEOUT,
@@ -181,18 +179,12 @@ class ReolinkOptionsFlowHandler(config_entries.OptionsFlow):
                             CONF_PLAYBACK_MONTHS, DEFAULT_PLAYBACK_MONTHS
                         ),
                     ): cv.positive_int,
-                    # vol.Optional(
-                    #     CONF_PLAYBACK_THUMBNAILS,
-                    #     default=self.config_entry.options.get(
-                    #         CONF_PLAYBACK_THUMBNAILS, DEFAULT_PLAYBACK_THUMBNAILS
-                    #     ),
-                    # ): cv.boolean,
-                    # vol.Optional(
-                    #     CONF_THUMBNAIL_PATH,
-                    #     default=self.config_entry.options.get(
-                    #         CONF_THUMBNAIL_PATH, None
-                    #     ),
-                    # ): cv.string,
+                    vol.Optional(
+                        CONF_THUMBNAIL_PATH,
+                        default=self.config_entry.options.get(
+                            CONF_THUMBNAIL_PATH, None
+                        ),
+                    ): cv.string,
                     vol.Optional(
                         CONF_TIMEOUT,
                         default=self.config_entry.options.get(

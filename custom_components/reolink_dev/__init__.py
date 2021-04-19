@@ -24,16 +24,15 @@ from .const import (
     CONF_CHANNEL,
     CONF_MOTION_OFF_DELAY,
     CONF_PLAYBACK_MONTHS,
-    CONF_PLAYBACK_THUMBNAILS,
     CONF_PROTOCOL,
     CONF_STREAM,
     CONF_THUMBNAIL_PATH,
     COORDINATOR,
-    DEFAULT_PLAYBACK_THUMBNAILS,
     DOMAIN,
     EVENT_DATA_RECEIVED,
     PUSH_MANAGER,
     SERVICE_PTZ_CONTROL,
+    SERVICE_QUERY_VOD,
     SERVICE_SET_DAYNIGHT,
     SERVICE_SET_SENSITIVITY,
 )
@@ -117,10 +116,8 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
 
     base.motion_off_delay = entry.options[CONF_MOTION_OFF_DELAY]
     base.playback_months = entry.options[CONF_PLAYBACK_MONTHS]
-    base.playback_thumbnails = entry.options.get(
-        CONF_PLAYBACK_THUMBNAILS, DEFAULT_PLAYBACK_THUMBNAILS
-    )
 
+    base.set_thumbnail_path(entry.options.get(CONF_THUMBNAIL_PATH))
     await base.set_timeout(entry.options[CONF_TIMEOUT])
     await base.set_protocol(entry.options[CONF_PROTOCOL])
     await base.set_stream(entry.options[CONF_STREAM])
@@ -152,5 +149,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass.services.async_remove(DOMAIN, SERVICE_PTZ_CONTROL)
         hass.services.async_remove(DOMAIN, SERVICE_SET_DAYNIGHT)
         hass.services.async_remove(DOMAIN, SERVICE_SET_SENSITIVITY)
+        hass.services.async_remove(DOMAIN, SERVICE_QUERY_VOD)
 
     return unload_ok

@@ -3,11 +3,12 @@ import datetime as dt
 import logging
 import os
 import secrets
-from typing import Dict, Optional, Tuple, cast
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import quote_plus, unquote_plus
 from aiohttp import web
 
 from dateutil import relativedelta
+from homeassistant.components.http.const import KEY_AUTHENTICATED
 
 # from homeassistant.components.http.auth import async_sign_path
 
@@ -46,6 +47,8 @@ from .base import ReolinkBase, searchtime_to_datetime
 from .const import (
     BASE,
     DOMAIN,
+    DOMAIN_DATA,
+    LONG_TOKENS,
     MEDIA_SOURCE,
     SHORT_TOKENS,
     THUMBNAIL_EXTENSION as EXTENSION,
@@ -87,25 +90,24 @@ class ReolinkMediaSource(MediaSource):
         """Initialize Reolink source."""
         super().__init__(DOMAIN)
         self.hass = hass
+        self._last_token: dt.datetime = None
 
     @property
     def _short_security_token(self):
-        data: dict = cast(dict, self.hass.data.get(DOMAIN)).setdefault(MEDIA_SOURCE, {})
-        token: str = data.get(SHORT_TOKENS)
-        if not token:
-            token = data.setdefault(SHORT_TOKENS, secrets.token_hex())
-            async_call_later(self.hass, 3600, self._clear_short_security_token)
-        return token
+        def clear_token():
+            tokens.remove(token)
 
-    def _clear_short_security_token(self):
-        data: dict = self.hass.data.get(DOMAIN)
-        if not data:
-            return
-        data = data.get(MEDIA_SOURCE)
-        if not data:
-            return
-        if SHORT_TOKENS in data:
-            del data[SHORT_TOKENS]
+        data: dict = self.hass.data.setdefault(DOMAIN_DATA, {})
+        data = data.setdefault(MEDIA_SOURCE, {})
+        tokens: List[str] = data.setdefault(SHORT_TOKENS, [])
+        if len(tokens) < 1 or (
+            self._last_token and (self._last_token - dt_utils.now()).seconds >= 1800
+        ):
+            self._last_token = dt_utils.now()
+            tokens.append(secrets.token_hex())
+            async_call_later(self.hass, 3600, clear_token)
+        token = next(iter(tokens), None)
+        return token
 
     async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
         """Resolve a media item to a playable item."""
@@ -125,7 +127,7 @@ class ReolinkMediaSource(MediaSource):
         url = await base.api.get_vod_source(file)
         _LOGGER.debug("Load VOD %s", url)
         stream = create_stream(self.hass, url)
-        stream.add_provider("hls", timeout=600)
+        stream.add_provider("hls", timeout=3600)
         url: str = stream.endpoint_url("hls")
         # the media browser seems to have a problem with the master_playlist
         # ( it does not load the referenced playlist ) so we will just
@@ -292,10 +294,7 @@ class ReolinkMediaSource(MediaSource):
                 start_date.date(), dt.time.max, start_date.tzinfo
             )
 
-            _, files, save = await base.commit_thumbnails(start_date, end_date)
-            if save:
-                _LOGGER.debug("syncing thumbnails to disk")
-                await save
+            _, files = await base.send_search(start_date, end_date)
 
             for file in files:
                 end_date = searchtime_to_datetime(file["EndTime"], end_date.tzinfo)
@@ -344,8 +343,8 @@ class ReolinkSourceVODView(HomeAssistantView):
 
     url = VOD_URL
     name = "api:" + DOMAIN + ":video"
-    requires_auth = False
     cors_allowed = True
+    requires_auth = False
 
     def __init__(self, hass: HomeAssistant):
         """Initialize media view """
@@ -356,6 +355,18 @@ class ReolinkSourceVODView(HomeAssistantView):
         self, request: web.Request, camera_id: str, event_id: str
     ) -> web.Response:
         """ start a GET request. """
+
+        authenticated = request.get(KEY_AUTHENTICATED, False)
+        if not authenticated:
+            token: str = request.query.get("token")
+            if not token:
+                raise web.HTTPUnauthorized()
+
+            data: dict = self.hass.data.get(DOMAIN_DATA)
+            data = data.get(MEDIA_SOURCE) if data else None
+            tokens: List[str] = data.get(LONG_TOKENS) if data else None
+            if not tokens or not token in tokens:
+                raise web.HTTPUnauthorized()
 
         if not camera_id or not event_id:
             raise web.HTTPNotFound()
@@ -368,15 +379,6 @@ class ReolinkSourceVODView(HomeAssistantView):
             _LOGGER.debug("camera %s not found", camera_id)
             raise web.HTTPNotFound()
 
-        if not self.requires_auth:
-            token: str = request.query.get("token")
-            if not token:
-                _LOGGER.warning("VoD request with token is required")
-                raise web.HTTPNotFound()
-            if token != base.security_token:
-                _LOGGER.warning("VoD request with invalid token")
-                raise web.HTTPNotFound()
-
         file = unquote_plus(event_id)
         url = await base.api.get_vod_source(file)
         return web.HTTPTemporaryRedirect(url)
@@ -387,8 +389,8 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
 
     url = THUMBNAIL_URL
     name = "api:" + DOMAIN + ":image"
-    requires_auth = False
     cors_allowed = True
+    requires_auth = False
 
     def __init__(self, hass: HomeAssistant):
         """Initialize media view """
@@ -403,19 +405,17 @@ class ReolinkSourceThumbnailView(HomeAssistantView):
     ) -> web.Response:
         """ start a GET request. """
 
-        if not self.requires_auth:
+        authenticated = request.get(KEY_AUTHENTICATED, False)
+        if not authenticated:
             token: str = request.query.get("token")
             if not token:
-                _LOGGER.warning("Thumbnail request with token is required")
-                raise web.HTTPNotFound()
-            data: dict = self.hass.data.get(DOMAIN)
-            data = data.get(MEDIA_SOURCE) if data and MEDIA_SOURCE in data else None
-            token_cmp = (
-                data.get(SHORT_TOKENS) if data and SHORT_TOKENS in data else None
-            )
-            if token != token_cmp:
-                _LOGGER.warning("Thumbnail request with invalid token")
-                raise web.HTTPNotFound()
+                raise web.HTTPUnauthorized()
+
+            data: dict = self.hass.data.get(DOMAIN_DATA)
+            data = data.get(MEDIA_SOURCE) if data else None
+            tokens: List[str] = data.get(SHORT_TOKENS) if data else None
+            if not tokens or not token in tokens:
+                raise web.HTTPUnauthorized()
 
         if not camera_id or not event_id:
             raise web.HTTPNotFound()

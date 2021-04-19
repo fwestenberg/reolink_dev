@@ -15,17 +15,18 @@ from homeassistant.helpers.aiohttp_client import (
 )
 
 from .const import (
+    DOMAIN_DATA,
+    LAST_EVENT,
     SERVICE_PTZ_CONTROL,
     SERVICE_QUERY_VOD,
     SERVICE_SET_BACKLIGHT,
     SERVICE_SET_DAYNIGHT,
     SERVICE_SET_SENSITIVITY,
-    SERVICE_COMMIT_THUMBNAILS,
-    SERVICE_CLEANUP_THUMBNAILS,
     SUPPORT_PLAYBACK,
     SUPPORT_PTZ,
 )
 from .entity import ReolinkEntity
+from .typings import VoDEvent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,23 +72,6 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
         },
         SERVICE_PTZ_CONTROL,
         [SUPPORT_PTZ],
-    )
-    platform.async_register_entity_service(
-        SERVICE_COMMIT_THUMBNAILS,
-        {
-            vol.Optional("start"): cv.datetime,
-            vol.Optional("end"): cv.datetime,
-        },
-        SERVICE_COMMIT_THUMBNAILS,
-        [SUPPORT_PLAYBACK],
-    )
-    platform.async_register_entity_service(
-        SERVICE_CLEANUP_THUMBNAILS,
-        {
-            vol.Optional("older_than"): cv.datetime,
-        },
-        SERVICE_CLEANUP_THUMBNAILS,
-        [SUPPORT_PLAYBACK],
     )
     platform.async_register_entity_service(
         SERVICE_QUERY_VOD,
@@ -161,6 +145,7 @@ class ReolinkCamera(ReolinkEntity, Camera):
     @property
     def playback_support(self):
         """ Return whethere the camera has VoDs. """
+        # TODO : this should probably be like ptz above, and be a property of the api
         return bool(self._base.api.hdd_info)
 
     @property
@@ -180,6 +165,15 @@ class ReolinkCamera(ReolinkEntity, Camera):
 
         if self._base.api.sensitivity_presets:
             attrs["sensitivity"] = self.get_sensitivity_presets()
+
+        if self.playback_support:
+            data: dict = self.hass.data.get(DOMAIN_DATA)
+            data = data.get(self._base.unique_id) if data else None
+            last: VoDEvent = data.get(LAST_EVENT) if data else None
+            if last and last.url:
+                attrs["video_url"] = last.url
+                if last.thumbnail and last.thumbnail.exists:
+                    attrs["video_thumbnail"] = last.thumbnail.url
 
         return attrs
 
@@ -220,13 +214,6 @@ class ReolinkCamera(ReolinkEntity, Camera):
             command=self._ptz_commands[command], **kwargs
         )
 
-    async def commit_thumbnails(self, **kwargs):
-        """ Pass Sync command to media source """
-        if not self.playback_support:
-            _LOGGER.error("Video Playback is not supported on this device")
-            return
-        await self._base.commit_thumbnails(**kwargs)
-
     async def query_vods(self, event_id, **kwargs):
         """ Query camera for VoDs and emit results """
         if not self.playback_support:
@@ -236,14 +223,6 @@ class ReolinkCamera(ReolinkEntity, Camera):
         await self._base.emit_search_results(
             event_id, self._entry_id, context=self._context, **kwargs
         )
-
-    async def cleanup_thumbnails(self, **kwargs):
-        """ Cleanup Thumbnails """
-        if not self.playback_support:
-            _LOGGER.error("Video Playback is not supported on this device")
-            return
-
-        await self._base.purge_stored_thumbnails(**kwargs)
 
     def get_sensitivity_presets(self):
         """Get formatted sensitivity presets."""

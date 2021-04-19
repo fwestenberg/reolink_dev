@@ -1,11 +1,11 @@
 """Reolink parent entity class."""
 
-from custom_components.reolink_dev.base import ReolinkBase
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import BASE, COORDINATOR, DOMAIN
+from .base import ReolinkBase
 
 
 class ReolinkEntity(CoordinatorEntity):
