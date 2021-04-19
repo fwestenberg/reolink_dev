@@ -43,7 +43,7 @@ SCAN_INTERVAL = timedelta(minutes=1)
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = ["camera", "switch", "binary_sensor"]
+PLATFORMS = ["camera", "switch", "binary_sensor", "sensor"]
 
 
 async def async_setup(
