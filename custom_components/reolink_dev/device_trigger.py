@@ -1,6 +1,6 @@
 """ Additional triggers for ReoLink Camera """
 
-# import logging
+import logging
 
 import voluptuous as vol
 
@@ -32,7 +32,7 @@ TRIGGER_SCHEMA = TRIGGER_BASE_SCHEMA.extend(
     {vol.Required(CONF_TYPE): vol.In(TRIGGER_TYPES)}
 )
 
-# _LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_get_triggers(hass: HomeAssistant, device_id: str):
@@ -85,6 +85,7 @@ async def async_attach_trigger(
     device = device_registry.async_get(config[CONF_DEVICE_ID])
 
     if not device:
+        _LOGGER.debug("no device")
         return
 
     if config[CONF_TYPE] == VOD_NO_THUMB_TRIGGER:
@@ -99,6 +100,7 @@ async def async_attach_trigger(
             )
         )
         if not sensor:
+            _LOGGER.debug("no sensor")
             return
 
         vod_config = state_trigger.TRIGGER_SCHEMA(
@@ -106,9 +108,12 @@ async def async_attach_trigger(
                 CONF_PLATFORM: "state",
                 CONF_ENTITY_ID: sensor.entity_id,
                 state_trigger.CONF_ATTRIBUTE: "has_thumbnail",
-                state_trigger.CONF_TO: False,
+                state_trigger.CONF_TO: "false",
             }
         )
+        _LOGGER.debug("vod_config: %s", vod_config)
+        _LOGGER.debug("action: %s", action)
+        _LOGGER.debug("automation_info: %s", automation_info)
         return await state_trigger.async_attach_trigger(
             hass,
             vod_config,

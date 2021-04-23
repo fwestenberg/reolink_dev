@@ -66,6 +66,7 @@ async def async_get_actions(hass: HomeAssistant, device_id: str):
             }
         )
 
+    _LOGGER.debug("actions: %s", actions)
     return actions
 
 
@@ -81,6 +82,7 @@ async def async_call_action_from_config(
     device = device_registry.async_get(config[CONF_DEVICE_ID])
 
     if not device:
+        _LOGGER.debug("no device")
         return
 
     if config[CONF_TYPE] == VOD_THUMB_CAP_ACTION:
@@ -96,6 +98,7 @@ async def async_call_action_from_config(
         camera = next((entry for entry in entries if entry.domain == CAMERA_DOMAIN))
 
         if not sensor and camera:
+            _LOGGER.debug("no sensor or camera")
             return
 
         sensor_state = hass.states.get(sensor.entity_id)
@@ -104,7 +107,8 @@ async def async_call_action_from_config(
             ATTR_ENTITY_ID: camera.entity_id,
             "filename": sensor_state.attributes.get("thumbnail_path"),
         }
-
+        _LOGGER.debug("service_data: %s", service_data)
+        _LOGGER.debug("variables: %s", variables)
         return await hass.services.async_call(
             CAMERA_DOMAIN,
             SERVICE_SNAPSHOT,

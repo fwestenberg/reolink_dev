@@ -81,6 +81,11 @@ class LastEventSensor(ReolinkEntity, SensorEntity):
         await super().request_refresh()
         self._hass.async_add_job(self._update_event_range)
 
+    async def async_update(self):
+        """ polling update """
+        await super().async_update()
+        self._hass.async_add_job(self._update_event_range)
+
     async def _update_event_range(self):
         end = dt_utils.now()
         start = self._attrs.most_recent_day
@@ -204,9 +209,12 @@ class LastEventSensor(ReolinkEntity, SensorEntity):
                 if self._attrs.last_event.event_id:
                     attrs["vod_event_id"] = self._attrs.last_event.event_id
                     if self._attrs.last_event.thumbnail:
-                        attrs["has_thumbnail"] = bool(
-                            self._attrs.last_event.thumbnail.exists
+                        attrs["has_thumbnail"] = (
+                            "true"
+                            if self._attrs.last_event.thumbnail.exists
+                            else "false"
                         )
+
                         attrs["thumbnail_path"] = self._attrs.last_event.thumbnail.path
                 if self._attrs.last_event.duration:
                     attrs["duration"] = str(self._attrs.last_event.duration)
