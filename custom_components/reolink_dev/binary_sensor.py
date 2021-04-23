@@ -2,13 +2,13 @@
 import asyncio
 import datetime
 
-import logging
+# import logging
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 
 from .entity import ReolinkEntity
 
-_LOGGER = logging.getLogger(__name__)
+# _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_DEVICE_CLASS = "motion"
 
@@ -113,11 +113,9 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
         """Return the state attributes."""
         attrs = super().extra_state_attributes
 
-        if self._state:
-            if attrs is None:
-                attrs = {}
+        if attrs is None:
+            attrs = {}
 
-            attrs["bus_event_id"] = self._base.event_id
+        attrs["bus_event_id"] = self._base.event_id
 
-        _LOGGER.debug("attrs: %s", attrs)
         return attrs

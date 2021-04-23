@@ -202,12 +202,12 @@ class LastEventSensor(ReolinkEntity, SensorEntity):
                 attrs["oldest_day"] = self._attrs.oldest_day.isoformat()
             if self._attrs.last_event:
                 if self._attrs.last_event.event_id:
-                    attrs["video_id"] = self._attrs.last_event.event_id
+                    attrs["vod_event_id"] = self._attrs.last_event.event_id
                     if self._attrs.last_event.thumbnail:
-                        attrs["video_thumbnail"] = {
-                            "exists": bool(self._attrs.last_event.thumbnail.exists),
-                            "path": self._attrs.last_event.thumbnail.path,
-                        }
+                        attrs["has_thumbnail"] = bool(
+                            self._attrs.last_event.thumbnail.exists
+                        )
+                        attrs["thumbnail_path"] = self._attrs.last_event.thumbnail.path
                 if self._attrs.last_event.duration:
                     attrs["duration"] = str(self._attrs.last_event.duration)
 

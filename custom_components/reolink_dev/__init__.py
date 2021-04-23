@@ -16,6 +16,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry
+from homeassistant.helpers.storage import STORAGE_DIR
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .base import ReolinkBase, ReolinkPush
@@ -50,6 +51,11 @@ async def async_setup(
 ):  # pylint: disable=unused-argument
     """Set up the Reolink component."""
     hass.data.setdefault(DOMAIN, {})
+
+    # ensure default storage path is writable by scripts
+    default_thumbnail_path = hass.config.path(f"{STORAGE_DIR}/{DOMAIN}")
+    if default_thumbnail_path not in hass.config.allowlist_external_dirs:
+        hass.config.allowlist_external_dirs.add(default_thumbnail_path)
 
     return True
 

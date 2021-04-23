@@ -38,5 +38,13 @@
                 }
             }
         }
+    },
+    "device_automation": {
+        "trigger_type": {
+            "vod_without_thumbnail": "New motion video detected"
+        },
+        "action_type": {
+            "capture_vod_thumbnail": "Save snapshot as motion thumbnail"
+        }
     }
 }
