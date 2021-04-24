@@ -41,10 +41,14 @@
     },
     "device_automation": {
         "trigger_type": {
-            "vod_without_thumbnail": "New motion video detected"
+            "new_vod": "New motion video detected"
         },
         "action_type": {
             "capture_vod_thumbnail": "Save snapshot as motion thumbnail"
+        },
+        "condition_type": {
+            "vod_no_thumbnail": "Latest motion video has no thumbnail",
+            "vod_has_thumbnail": "Latest motion video has a thumbnail"
         }
     }
 }
