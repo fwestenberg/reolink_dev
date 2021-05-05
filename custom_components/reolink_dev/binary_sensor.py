@@ -13,7 +13,6 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_DEVICE_CLASS = "motion"
 
 
-@asyncio.coroutine
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Reolink IP Camera switches."""
     sensor = MotionSensor(hass, config_entry)

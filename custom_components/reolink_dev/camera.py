@@ -25,7 +25,6 @@ from .entity import ReolinkEntity
 _LOGGER = logging.getLogger(__name__)
 
 
-@asyncio.coroutine
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up a Reolink IP Camera."""
 
