@@ -137,3 +137,4 @@ The following models are not to be supported:
 - B800: Only with NVR
 - B400: Only with NVR
 - D400: Only with NVR
+- Lumus
