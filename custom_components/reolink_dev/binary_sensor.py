@@ -1,14 +1,14 @@
 """This component provides support for Reolink motion events."""
 import asyncio
 import datetime
-import logging
+
+# import logging
 
 from homeassistant.components.binary_sensor import BinarySensorEntity
 
-from .const import EVENT_DATA_RECEIVED
 from .entity import ReolinkEntity
 
-_LOGGER = logging.getLogger(__name__)
+# _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_DEVICE_CLASS = "motion"
 
@@ -29,6 +29,7 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
 
         self._available = False
         self._event_state = False
+        self._last_event_state = False
         self._last_motion = datetime.datetime.min
 
     @property
@@ -78,6 +79,7 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
 
     async def handle_event(self, event):
         """Handle incoming event for motion detection and availability."""
+
         try:
             self._available = event.data["available"]
             return
@@ -88,6 +90,7 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
             return
 
         try:
+            self._last_event_state = bool(self._event_state)
             self._event_state = event.data["motion"]
         except KeyError:
             return
@@ -103,3 +106,15 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
                 await asyncio.sleep(self._base.motion_off_delay)
 
         self.async_schedule_update_ha_state()
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        attrs = super().extra_state_attributes
+
+        if attrs is None:
+            attrs = {}
+
+        attrs["bus_event_id"] = self._base.event_id
+
+        return attrs

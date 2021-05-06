@@ -33,10 +33,21 @@
           "timeout": "Timeout",
           "motion_off_delay": "Motion sensor off delay (seconds)",
           "playback_months": "Playback range (months)",
-          "playback_thumbnails": "Create thumbnails for playback items",
-          "playback_thumbnail_offset": "Pre-Record offset (seconds) for thumbnail"
+          "playback_thumbnail_path": "Custom thumbnail path"
         }
       }
+    }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "new_vod": "New motion video detected"
+    },
+    "action_type": {
+      "capture_vod_thumbnail": "Save snapshot as motion thumbnail"
+    },
+    "condition_type": {
+      "vod_no_thumbnail": "Latest motion video has no thumbnail",
+      "vod_has_thumbnail": "Latest motion video has a thumbnail"
     }
   }
 }
