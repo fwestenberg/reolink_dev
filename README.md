@@ -18,13 +18,13 @@ The `reolink` implementation allows you to integrate your [Reolink](https://www.
 
 ```bash
 # Download a copy of this repository
-$ wget https://github.com/fwestenberg/reolink/archive/master.zip
+$ wget https://github.com/fwestenberg/reolink_dev/archive/master.zip
 
 # Unzip the archive
 $ unzip master.zip
 
 # Move the reolink_dev directory into your custom_components directory in your Home Assistant install
-$ mv reolink-master/custom_components/reolink_dev <home-assistant-install-directory>/config/custom_components/
+$ mv reolink_dev-master/custom_components/reolink_dev <home-assistant-install-directory>/config/custom_components/
 ```
 
 
