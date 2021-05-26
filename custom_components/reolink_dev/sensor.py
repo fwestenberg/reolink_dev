@@ -96,7 +96,7 @@ class LastEventSensor(ReolinkEntity, SensorEntity):
                     months=int(self._base.playback_months)
                 )
         search, _ = await self._base.send_search(start, end, True)
-        if not len or len(search) < 1:
+        if not search or len(search) < 1:
             return
         entry = search[0]
         self._attrs.oldest_day = dt.datetime(
