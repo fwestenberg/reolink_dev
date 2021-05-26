@@ -173,7 +173,8 @@ class ReolinkBase:
             return False
         if not await self._api.get_states():
             return False
-
+            
+        await self._base.api.get_ai_state()
         await self._api.is_admin()
         return True
 
