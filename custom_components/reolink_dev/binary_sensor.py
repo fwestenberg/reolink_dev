@@ -2,13 +2,9 @@
 import asyncio
 import datetime
 
-# import logging
-
 from homeassistant.components.binary_sensor import BinarySensorEntity
 
 from .entity import ReolinkEntity
-
-# _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_DEVICE_CLASS = "motion"
 
@@ -57,7 +53,7 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
             datetime.datetime.now() - self._last_motion
         ).total_seconds() < self._base.motion_off_delay:
             self._state = True
-        else:
+        else:           
             self._state = False
 
         return self._state
@@ -101,6 +97,10 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
 
         if self._event_state:
             self._last_motion = datetime.datetime.now()
+
+            if self._base.api.ai_state:
+                # Pull the AI state only at motion detection
+                await self._base.api.get_ai_state()
         else:
             if self._base.motion_off_delay > 0:
                 await asyncio.sleep(self._base.motion_off_delay)
@@ -117,4 +117,15 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
 
         attrs["bus_event_id"] = self._base.event_id
 
+        if self._base.api.ai_state:
+            for key, value in self._base.api.ai_state.items():
+                if key == "channel":
+                    continue
+                
+                if self._state:
+                    attrs[key] = value == 1
+                else:
+                    # Reset the AI values.
+                    attrs[key] = False
+		
         return attrs
