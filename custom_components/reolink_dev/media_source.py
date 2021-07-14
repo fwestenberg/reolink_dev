@@ -143,7 +143,7 @@ class ReolinkMediaSource(MediaSource):
         """Browse media."""
 
         try:
-            source, camera_id, event_id = async_parse_identifier(item
+            source, camera_id, event_id = async_parse_identifier(item)
         except Unresolvable as err:
             raise BrowseError(str(err)) from err
 
