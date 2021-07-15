@@ -1,6 +1,7 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: 'Create a report to help us improve. Please always check out the Q&A page first,
+  or start your own discussion: https://github.com/fwestenberg/reolink_dev/discussions/categories/q-a.'
 title: ''
 labels: ''
 assignees: ''
