@@ -3,24 +3,34 @@ import asyncio
 from datetime import datetime
 import logging
 
-from haffmpeg.camera import CameraMjpeg
 import voluptuous as vol
 
 from homeassistant.components.camera import SUPPORT_STREAM, Camera
-from homeassistant.components.ffmpeg import DATA_FFMPEG
+
+# from homeassistant.components.ffmpeg import DATA_FFMPEG
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.aiohttp_client import (
     async_aiohttp_proxy_web,
     async_get_clientsession,
 )
 
-from .const import SERVICE_PTZ_CONTROL, SERVICE_SET_DAYNIGHT, SERVICE_SET_SENSITIVITY
+from .const import (
+    DOMAIN_DATA,
+    LAST_EVENT,
+    SERVICE_PTZ_CONTROL,
+    SERVICE_QUERY_VOD,
+    SERVICE_SET_BACKLIGHT,
+    SERVICE_SET_DAYNIGHT,
+    SERVICE_SET_SENSITIVITY,
+    SUPPORT_PLAYBACK,
+    SUPPORT_PTZ,
+)
 from .entity import ReolinkEntity
+from .typings import VoDEvent
 
 _LOGGER = logging.getLogger(__name__)
 
 
-@asyncio.coroutine
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up a Reolink IP Camera."""
 
@@ -45,6 +55,14 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     )
 
     platform.async_register_entity_service(
+        SERVICE_SET_BACKLIGHT,
+        {
+            vol.Required("mode"): cv.string,
+        },
+        SERVICE_SET_BACKLIGHT,
+    )
+
+    platform.async_register_entity_service(
         SERVICE_PTZ_CONTROL,
         {
             vol.Required("command"): cv.string,
@@ -52,6 +70,17 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
             vol.Optional("speed"): cv.positive_int,
         },
         SERVICE_PTZ_CONTROL,
+        [SUPPORT_PTZ],
+    )
+    platform.async_register_entity_service(
+        SERVICE_QUERY_VOD,
+        {
+            vol.Required("event_id"): cv.string,
+            vol.Optional("start"): cv.datetime,
+            vol.Optional("end"): cv.datetime,
+        },
+        SERVICE_QUERY_VOD,
+        [SUPPORT_PLAYBACK],
     )
 
     async_add_devices([camera])
@@ -64,10 +93,10 @@ class ReolinkCamera(ReolinkEntity, Camera):
         """Initialize a Reolink camera."""
         ReolinkEntity.__init__(self, hass, config)
         Camera.__init__(self)
+        self._entry_id = config.entry_id
 
-        self._hass = hass
-        self._ffmpeg = self._hass.data[DATA_FFMPEG]
-        self._last_image = None
+        # self._ffmpeg = self._hass.data[DATA_FFMPEG]
+        # self._last_image = None
         self._ptz_commands = {
             "AUTO": "Auto",
             "DOWN": "Down",
@@ -91,6 +120,12 @@ class ReolinkCamera(ReolinkEntity, Camera):
             "BLACKANDWHITE": "Black&White",
         }
 
+        self._backlight_modes = {
+            "BACKLIGHTCONTROL": "BackLightControl",
+            "DYNAMICRANGECONTROL": "DynamicRangeControl",
+            "OFF": "Off",
+        }
+
     @property
     def unique_id(self):
         """Return Unique ID string."""
@@ -107,11 +142,21 @@ class ReolinkCamera(ReolinkEntity, Camera):
         return self._base.api.ptz_support
 
     @property
+    def playback_support(self):
+        """ Return whethere the camera has VoDs. """
+        # TODO : this should probably be like ptz above, and be a property of the api
+        return bool(self._base.api.hdd_info)
+
+    @property
     def device_state_attributes(self):
         """Return the camera state attributes."""
         attrs = {}
         if self._base.api.ptz_support:
             attrs["ptz_presets"] = self._base.api.ptz_presets
+
+        for key, value in self._backlight_modes.items():
+            if value == self._base.api.backlight_state:
+                attrs["backlight_state"] = key
 
         for key, value in self._daynight_modes.items():
             if value == self._base.api.daynight_state:
@@ -120,15 +165,29 @@ class ReolinkCamera(ReolinkEntity, Camera):
         if self._base.api.sensitivity_presets:
             attrs["sensitivity"] = self.get_sensitivity_presets()
 
+        if self.playback_support:
+            data: dict = self.hass.data.get(DOMAIN_DATA)
+            data = data.get(self._base.unique_id) if data else None
+            last: VoDEvent = data.get(LAST_EVENT) if data else None
+            if last and last.url:
+                attrs["video_url"] = last.url
+                if last.thumbnail and last.thumbnail.exists:
+                    attrs["video_thumbnail"] = last.thumbnail.url
+
         return attrs
 
     @property
     def supported_features(self):
         """Return supported features."""
-        return SUPPORT_STREAM
+        features = SUPPORT_STREAM
+        if self.ptz_support:
+            features += SUPPORT_PTZ
+        if self.playback_support:
+            features += SUPPORT_PLAYBACK
+        return features
 
     async def stream_source(self):
-        """Return the source of the stream."""        
+        """Return the source of the stream."""
         return await self._base.api.get_stream_source()
 
     async def handle_async_mjpeg_stream(self, request):
@@ -152,6 +211,16 @@ class ReolinkCamera(ReolinkEntity, Camera):
 
         await self._base.api.set_ptz_command(
             command=self._ptz_commands[command], **kwargs
+        )
+
+    async def query_vods(self, event_id, **kwargs):
+        """ Query camera for VoDs and emit results """
+        if not self.playback_support:
+            _LOGGER.error("Video Playback is not supported on this device")
+            return
+
+        await self._base.emit_search_results(
+            event_id, self._entry_id, context=self._context, **kwargs
         )
 
     def get_sensitivity_presets(self):
@@ -184,6 +253,10 @@ class ReolinkCamera(ReolinkEntity, Camera):
     async def set_daynight(self, mode):
         """Set the day and night mode to the camera."""
         await self._base.api.set_daynight(value=self._daynight_modes[mode])
+
+    async def set_backlight(self, mode):
+        """Set the backlight mode to the camera."""
+        await self._base.api.set_backlight(value=self._backlight_modes[mode])
 
     async def async_enable_motion_detection(self):
         """Predefined camera service implementation."""

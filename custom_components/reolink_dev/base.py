@@ -1,8 +1,14 @@
 """This component updates the camera API and subscription."""
 import logging
+import os
 import re
 
-from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR
+import datetime as dt
+from typing import Optional
+
+from urllib.parse import quote_plus
+from dateutil.relativedelta import relativedelta
+
 from homeassistant.const import (
     CONF_HOST,
     CONF_PASSWORD,
@@ -10,18 +16,21 @@ from homeassistant.const import (
     CONF_TIMEOUT,
     CONF_USERNAME,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Context, HomeAssistant
 from homeassistant.helpers.network import get_url
-from homeassistant.helpers.entity_registry import (
-    async_entries_for_config_entry,
-    async_get_registry as async_get_entity_registry,
-)
+from homeassistant.helpers.storage import STORAGE_DIR
+import homeassistant.util.dt as dt_util
 
 from reolink.camera_api import Api
 from reolink.subscription_manager import Manager
+from reolink.typings import SearchTime
+from .typings import VoDEvent, VoDEventThumbnail
 
 from .const import (
     BASE,
+    CONF_PLAYBACK_MONTHS,
+    CONF_THUMBNAIL_PATH,
+    DEFAULT_PLAYBACK_MONTHS,
     EVENT_DATA_RECEIVED,
     CONF_CHANNEL,
     CONF_MOTION_OFF_DELAY,
@@ -37,9 +46,15 @@ from .const import (
     DOMAIN,
     PUSH_MANAGER,
     SESSION_RENEW_THRESHOLD,
+    THUMBNAIL_EXTENSION,
+    THUMBNAIL_URL,
+    VOD_URL,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+STORAGE_VERSION = 1
+
 
 class ReolinkBase:
     """The implementation of the Reolink IP base class."""
@@ -90,13 +105,24 @@ class ReolinkBase:
         )
 
         self._hass = hass
+        self.async_functions = list()
         self.sync_functions = list()
         self.motion_detection_state = True
 
         if CONF_MOTION_OFF_DELAY not in options:
             self.motion_off_delay = DEFAULT_MOTION_OFF_DELAY
         else:
-            self.motion_off_delay = options[CONF_MOTION_OFF_DELAY]
+            self.motion_off_delay: int = options[CONF_MOTION_OFF_DELAY]
+
+        if CONF_PLAYBACK_MONTHS not in options:
+            self.playback_months = DEFAULT_PLAYBACK_MONTHS
+        else:
+            self.playback_months: int = options[CONF_PLAYBACK_MONTHS]
+
+        if CONF_THUMBNAIL_PATH not in options:
+            self._thumbnail_path = None
+        else:
+            self._thumbnail_path: str = options[CONF_THUMBNAIL_PATH]
 
     @property
     def name(self):
@@ -106,8 +132,8 @@ class ReolinkBase:
     @property
     def unique_id(self):
         """Create the unique ID, base for all entities."""
-        id = self._api.mac_address.replace(":", "")
-        return f"{id}-{self.channel}"
+        uid = self._api.mac_address.replace(":", "")
+        return f"{uid}-{self.channel}"
 
     @property
     def event_id(self):
@@ -136,13 +162,27 @@ class ReolinkBase:
         """Return the API object."""
         return self._api
 
+    @property
+    def thumbnail_path(self):
+        """ Thumbnail storage location """
+        if not self._thumbnail_path:
+            self._thumbnail_path = self._hass.config.path(
+                f"{STORAGE_DIR}/{DOMAIN}/{self.unique_id}"
+            )
+        return self._thumbnail_path
+
+    def set_thumbnail_path(self, value):
+        """ Set custom thumbnail path"""
+        self._thumbnail_path = value
+
     async def connect_api(self):
         """Connect to the Reolink API and fetch initial dataset."""
         if not await self._api.get_settings():
             return False
         if not await self._api.get_states():
             return False
-
+            
+        await self._api.get_ai_state()
         await self._api.is_admin()
         return True
 
@@ -186,8 +226,62 @@ class ReolinkBase:
     async def stop(self):
         """Disconnect the API and deregister the event listener."""
         await self.disconnect_api()
+        for func in self.async_functions:
+            await func()
         for func in self.sync_functions:
             await self._hass.async_add_executor_job(func)
+
+    async def send_search(
+        self, start: dt.datetime, end: dt.datetime, only_status: bool = False
+    ):
+        """ Call the API of the camera device to search for VoDs """
+        return await self._api.send_search(start, end, only_status)
+
+    async def emit_search_results(
+        self,
+        bus_event_id: str,
+        camera_id: str,
+        start: Optional[dt.datetime] = None,
+        end: Optional[dt.datetime] = None,
+        context: Optional[Context] = None,
+    ):
+        """ Run search and emit VoD results to event """
+
+        if end is None:
+            end = dt_util.now()
+        if start is None:
+            start = dt.datetime.combine(end.date().replace(day=1), dt.time.min)
+            if self.playback_months > 1:
+                start -= relativedelta(months=int(self.playback_months))
+
+        _, files = await self._api.send_search(start, end)
+
+        for file in files:
+            end = searchtime_to_datetime(file["EndTime"], end.tzinfo)
+            start = searchtime_to_datetime(file["StartTime"], end.tzinfo)
+            event_id = str(start.timestamp())
+            url = VOD_URL.format(camera_id=camera_id, event_id=quote_plus(file["name"]))
+
+            thumbnail = os.path.join(
+                self.thumbnail_path, f"{event_id}.{THUMBNAIL_EXTENSION}"
+            )
+
+            self._hass.bus.fire(
+                bus_event_id,
+                VoDEvent(
+                    event_id,
+                    start,
+                    end - start,
+                    file["name"],
+                    url,
+                    VoDEventThumbnail(
+                        THUMBNAIL_URL.format(camera_id=camera_id, event_id=event_id),
+                        os.path.isfile(thumbnail),
+                        thumbnail,
+                    ),
+                ),
+                context=context,
+            )
 
 
 class ReolinkPush:
@@ -219,12 +313,10 @@ class ReolinkPush:
         self._webhook_id = await self.register_webhook()
         self._webhook_url = "{}{}".format(
             get_url(self._hass, prefer_external=False),
-            self._hass.components.webhook.async_generate_path(self._webhook_id)
+            self._hass.components.webhook.async_generate_path(self._webhook_id),
         )
 
-        self._sman = Manager(
-            self._host, self._port, self._username, self._password
-        )
+        self._sman = Manager(self._host, self._port, self._username, self._password)
         if await self._sman.subscribe(self._webhook_url):
             _LOGGER.info(
                 "Host %s subscribed successfully to webhook %s",
@@ -247,7 +339,9 @@ class ReolinkPush:
         _LOGGER.debug("Registering webhook for event ID %s", self._event_id)
 
         webhook_id = self._hass.components.webhook.async_generate_id()
-        self._hass.components.webhook.async_register(DOMAIN, self._event_id, webhook_id, handle_webhook)
+        self._hass.components.webhook.async_register(
+            DOMAIN, self._event_id, webhook_id, handle_webhook
+        )
 
         return webhook_id
 
@@ -263,6 +357,8 @@ class ReolinkPush:
                 await self._sman.subscribe(self._webhook_url)
             else:
                 await self.set_available(True)
+        else:
+            await self.set_available(True)
 
     async def set_available(self, available: bool):
         """Set the availability state to the base object."""
@@ -295,10 +391,11 @@ class ReolinkPush:
                     members += 1
             except AttributeError:
                 pass
-            except KeyError: 
+            except KeyError:
                 pass
         _LOGGER.debug("Found %d listeners for event %s", members, self._event_id)
         return members
+
 
 async def handle_webhook(hass, webhook_id, request):
     """Handle incoming webhook from Reolink for inbound messages and calls."""
@@ -352,3 +449,16 @@ async def get_event_by_webhook(hass: HomeAssistant, webhook_id):
         if wid == webhook_id:
             event_id = info["name"]
             return event_id
+
+
+def searchtime_to_datetime(self: SearchTime, timezone: dt.tzinfo):
+    """ Convert SearchTime to datetime """
+    return dt.datetime(
+        self["year"],
+        self["mon"],
+        self["day"],
+        self["hour"],
+        self["min"],
+        self["sec"],
+        tzinfo=timezone,
+    )
