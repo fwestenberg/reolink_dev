@@ -1,7 +1,6 @@
 ---
 name: Bug report
-about: 'Create a report to help us improve. Please always check out the [Q&A](https://github.com/fwestenberg/reolink_dev/discussions/categories/q-a) page first,
-  or start your own discussion.'
+about: 'Create a report to help us improve. Please always check out the Q&A page before reporting a bug, or start your own discussion.'
 title: ''
 labels: ''
 assignees: ''
@@ -9,6 +8,7 @@ assignees: ''
 ---
 
 **Describe the bug**
+Please check out the [Q&A](https://github.com/fwestenberg/reolink_dev/discussions/categories/q-a) page first!
 A clear and concise description of what the bug is. Please make sure this bug is NOT about the Reolink HACS integration, only for the new Reolink HA integration.
 
 **To Reproduce**
