@@ -33,7 +33,8 @@
           "timeout": "Timeout",
           "motion_off_delay": "Motion sensor off delay (seconds)",
           "playback_months": "Playback range (months)",
-          "playback_thumbnail_path": "Custom thumbnail path"
+          "playback_thumbnail_path": "Custom thumbnail path",
+            "stream_format": "Stream format"
         }
       }
     }
