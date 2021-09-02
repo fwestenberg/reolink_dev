@@ -117,14 +117,13 @@ When the camera supports motion detection events, a binary sensor is created for
 
 Depending on the camera, the following switches are created:
 
-This integration creates a camera entity, which can be configured from the integrations page. In the options menu, the following parameters can be configured:
-
 | Switch               | Description |
 | :------------------- | :------------------------------------------------------------ |
 | Email                | Switch email alerts from the camera when motion is detected.  |
 | FTP                  | Switch FTP upload of photo and video when motion is detected. |
 | IR lights            | Switch the infrared lights to auto or off.                    |
 | Record audio         | Record auto or mute. This also implies the live-stream.       |
+| Push notifications   | Enable or disable push notifications to Android/IOS.          |
 | Recording            | Switch recording to the SD card.                              |
 
 ## Unsupported models
