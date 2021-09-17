@@ -210,8 +210,8 @@ class ReolinkCamera(ReolinkEntity, Camera):
             await stream.close()
 
     async def async_camera_image(
-        self, width: int | None = None, height: int | None = None
-    ) -> bytes | None:
+        self, width: int or None = None, height: int or None = None
+    ) -> bytes or None:
         """Return a still image response from the camera."""
         return await self._base.api.get_snapshot()
 
