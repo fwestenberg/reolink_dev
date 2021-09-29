@@ -114,6 +114,8 @@ When the camera supports motion detection events, a binary sensor is created for
 | :-------------------    | :---------------------------------------------------------------------------------------------------------- |
 | Motion sensor off delay | Control how many seconds it takes (after the last motion detection) for the binary sensor to switch off.    |
 
+When the camera supports AI objects detection, a binary sensor is created for each type of object (person, vehicle, pet)
+
 ## Switch
 
 Depending on the camera, the following switches are created:
