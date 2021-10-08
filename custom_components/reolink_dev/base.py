@@ -330,7 +330,7 @@ class ReolinkPush:
             await self.set_available(True)
         else:
             _LOGGER.error(
-                "Host %s subscription failed to its webhook, base object state will to NotAvailable",
+                "Host %s subscription failed to its webhook, base object state will be set to NotAvailable",
                 self._host,
             )
             await self.set_available(False)

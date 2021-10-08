@@ -6,7 +6,7 @@
   "version": "0.26",
   "iot_class": "local_polling",
   "requirements": [
-    "reolink==0.0.26"
+    "reolink==0.0.27"
   ],
   "dependencies": [
     "ffmpeg",
