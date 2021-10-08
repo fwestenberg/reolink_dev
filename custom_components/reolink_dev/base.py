@@ -32,11 +32,13 @@ from .const import (
     CONF_THUMBNAIL_PATH,
     DEFAULT_PLAYBACK_MONTHS,
     EVENT_DATA_RECEIVED,
+    CONF_USE_HTTPS,
     CONF_CHANNEL,
     CONF_MOTION_OFF_DELAY,
     CONF_PROTOCOL,
     CONF_STREAM,
     CONF_STREAM_FORMAT,
+    DEFAULT_USE_HTTPS,
     DEFAULT_CHANNEL,
     DEFAULT_MOTION_OFF_DELAY,
     DEFAULT_PROTOCOL,
@@ -73,6 +75,11 @@ class ReolinkBase:
         else:
             self._channel = config[CONF_CHANNEL]
 
+        if CONF_USE_HTTPS not in config:
+            self._use_https = DEFAULT_USE_HTTPS
+        else:
+            self._use_https = config[CONF_USE_HTTPS]
+
         if CONF_TIMEOUT not in options:
             self._timeout = DEFAULT_TIMEOUT
         else:
@@ -98,6 +105,7 @@ class ReolinkBase:
             config[CONF_PORT],
             self._username,
             self._password,
+            use_https=self._use_https,
             channel=self._channel - 1,
             stream=self._stream,
             stream_format=self._stream_format,
@@ -174,6 +182,10 @@ class ReolinkBase:
                 f"{STORAGE_DIR}/{DOMAIN}/{self.unique_id}"
             )
         return self._thumbnail_path
+
+    def enable_https(self, enable: bool):
+        self._use_https = enable
+        self._api.enable_https(enable)
 
     def set_thumbnail_path(self, value):
         """ Set custom thumbnail path"""
