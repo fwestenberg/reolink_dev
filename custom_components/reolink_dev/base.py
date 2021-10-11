@@ -432,7 +432,7 @@ async def handle_webhook(hass, webhook_id, request):
         _LOGGER.debug("Webhook triggered with unknown payload")
         return
 
-    _LOGGER_DATA.debug(data)
+    _LOGGER_DATA.debug("Webhook received payload: %s", data)
 
     matches = re.findall(r'Name="IsMotion" Value="(.+?)"', data)
     if matches:
