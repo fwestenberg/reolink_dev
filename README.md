@@ -50,6 +50,10 @@ For the motion detection to work, Home Assistant must be reachable via http from
 
 For the services and switch entities of this integration to work, you need a camera user of type "Administrator". Users of type "Guest" can only view the switch states but cannot change them and cannot call the services. Users are created and managed through the web interface of the camera (Device Settings / Cog icon -> User) or through the app (Device Settings / Cog icon -> Advanced -> User Management).
 
+### Hints during setup
+* Make sure you have set up the `Internal URL` in Home Assistant to the correct IP address and port (do not use the mDNS name)
+* Make sure ONVIF is enabled on your camera/NVR. It might be disabled by default and can only be enabled when you have a screen connected to the NVR, not via webb or app clients.
+
 ## Services
 
 The Reolink integration supports all default camera [services](https://www.home-assistant.io/integrations/camera/#services) and additionally provides the following services:
