@@ -88,7 +88,7 @@ class ReolinkFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_HOST): str,
-                    vol.Optional(CONF_PORT, default=80): cv.positive_int,
+                    vol.Optional(CONF_PORT, default=443): cv.positive_int,
                     vol.Optional(CONF_USE_HTTPS, default=DEFAULT_USE_HTTPS): bool,
                     vol.Required(CONF_USERNAME): str,
                     vol.Required(CONF_PASSWORD): str,
