@@ -2,5 +2,5 @@
   "name": "Reolink IP camera",
   "domains": "camera",
   "iot_class": "Local Push",
-  "homeassistant": "2021.2.3"
+  "homeassistant": "2021.9.3"
 }
