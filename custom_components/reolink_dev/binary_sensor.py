@@ -7,6 +7,8 @@ import traceback
 from homeassistant.components.binary_sensor import BinarySensorEntity
 
 from .entity import ReolinkEntity
+from .const import BASE, DOMAIN
+from .base import ReolinkBase
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -15,14 +17,18 @@ DEFAULT_DEVICE_CLASS = "motion"
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     """Set up the Reolink IP Camera switches."""
-    sensor = MotionSensor(hass, config_entry)
+    new_sensors = [MotionSensor(hass, config_entry)]
 
-    person_detected_sensor = ObjectDetectedSensor(hass, config_entry, 'person')
-    vehicle_detected_sensor = ObjectDetectedSensor(hass, config_entry, 'vehicle')
-    pet_detected_sensor = ObjectDetectedSensor(hass, config_entry, 'pet')
+    base: ReolinkBase = hass.data[DOMAIN][config_entry.entry_id][BASE]
 
-    async_add_devices([sensor, person_detected_sensor, vehicle_detected_sensor, pet_detected_sensor],
-                      update_before_add=False)
+    if base.api.is_ia_enabled:
+        _LOGGER.debug("Camera '{}' model '{}' is AI enabled so object detection sensors will be created".
+                      format(base.name, base.api.model))
+        new_sensors.append(ObjectDetectedSensor(hass, config_entry, 'person'))
+        new_sensors.append(ObjectDetectedSensor(hass, config_entry, 'vehicle'))
+        new_sensors.append(ObjectDetectedSensor(hass, config_entry, 'pet'))
+
+    async_add_devices(new_sensors, update_before_add=False)
 
 
 class MotionSensor(ReolinkEntity, BinarySensorEntity):
