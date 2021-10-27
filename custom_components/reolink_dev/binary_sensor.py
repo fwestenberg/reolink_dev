@@ -101,26 +101,20 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
         except KeyError:
             return
 
-        if self._base.api.channels > 1:
-            # Pull the motion state for the NVR channel, it has only 1 event
-            try:
-                self._event_state = await self._base.api.get_motion_state()
-            except:
-                _LOGGER.error("Motion state could not be queried from API")
-                _LOGGER.error(traceback.format_exc(()))
+        try:
+            await self._base.api.get_all_motion_states()
+            self._event_state = self._base.api.motion_state
+        except:
+            _LOGGER.error("Motion states could not be queried from API")
+            _LOGGER.error(traceback.format_exc(()))
+            return
 
         if self._event_state:
             self._last_motion = datetime.datetime.now()
 
             if self._base.api.ai_state:
-                # Pull the AI state only at motion detection
-                try:
-                    await self._base.api.get_ai_state()
-                    # send an event to AI based motion sensor entities
-                    self._hass.bus.async_fire(self._base.event_id, {"ai_refreshed": True})
-                except:
-                    _LOGGER.error("AI state could not be queried from API")
-                    _LOGGER.error(traceback.format_exc(()))
+                # send an event to AI based motion sensor entities
+                self._hass.bus.async_fire(self._base.event_id, {"ai_refreshed": True})
         else:
             if self._base.motion_off_delay > 0:
                 await asyncio.sleep(self._base.motion_off_delay)
