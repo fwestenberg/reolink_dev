@@ -7,6 +7,17 @@
 - Did you check the Frequent Issue section of this document?
 - Open a support ticket and provide useful logs (Look at sections below to enable debug logging)
 
+## Enable debugging of Reolink components in HA
+Edit your configuration yaml file to insert/edit the logger section and then restart your Core services:
+```yaml
+logger:
+  default: warning
+  logs:
+    custom_components.reolink_dev: debug
+    custom_components.reolink_dev.base.data: warning
+    reolink: debug
+```
+
 ## Frequent issues
 
 ### Motion sensors remains unavailable or never trigger
@@ -19,12 +30,3 @@ a HDMI screen connected to the NVR, without this then HA cannot be aware of a mo
   your camera is probably not able to resolve your address
 
 
-## Enable debugging of Reolink components in HA
-```yaml
-logger:
-  default: warning
-  logs:
-    custom_components.reolink_dev: debug
-    custom_components.reolink_dev.base.data: warning
-    reolink: debug
-```
