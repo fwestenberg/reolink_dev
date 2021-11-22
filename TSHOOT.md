@@ -17,6 +17,7 @@ logger:
     custom_components.reolink_dev.base.data: warning
     reolink: debug
 ```
+Copy and Paste all logs after you have clicked on "LOAD FULL HOMEASSISTANT LOG" button.
 
 ## Frequent issues
 
