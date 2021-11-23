@@ -29,5 +29,10 @@ a HDMI screen connected to the NVR, without this then HA cannot be aware of a mo
   - IT MUST NOT USE HTTPS : Reolink doesn't support HTTPS based Webhooks.
   - URL also should not be using a DNS name but an ip address instead unless you have a solid DNS setup 
   your camera is probably not able to resolve your address
+  
+### Push notification toggle has no effect in Android/iPhone app which doesn't change state
+
+This is absolutly normal. The firmware has 2 types of toggles for Push notifications: a local one (specific to your phone, your wife's phone has its own toggle) which is available in the application and a Master toggle which you cannot see in the application.
+This integration has access only to the Master toggle, which sits on top of your individual phone's application toggle.
 
 
