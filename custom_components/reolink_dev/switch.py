@@ -17,7 +17,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry, async_add_devices
     devices = []
     base = hass.data[DOMAIN][config_entry.entry_id][BASE]
 
-    if (base.unique_id[13:] == "1") and not base.api.is_nvr():
+    if (base.unique_id[13:] == "1") and not base.api.is_nvr(): # prevent controls from being created several times with multi channel devices
         for capability in await base.api.get_switch_capabilities():
             if capability == "ftp":
                 devices.append(FTPSwitch(hass, config_entry))
