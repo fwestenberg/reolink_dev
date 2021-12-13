@@ -113,7 +113,7 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
             self._event_state = self._base.api.motion_state
         except:
             _LOGGER.error("Motion states could not be queried from API")
-            _LOGGER.error(traceback.format_exc(()))
+            _LOGGER.error(traceback.format_exc())
             return
 
         if self._event_state:
@@ -126,7 +126,8 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
             if self._base.motion_off_delay > 0:
                 await asyncio.sleep(self._base.motion_off_delay)
 
-        self.async_schedule_update_ha_state()
+        if self.enabled:
+            self.async_schedule_update_ha_state()
 
     @property
     def extra_state_attributes(self):
@@ -270,7 +271,8 @@ class ObjectDetectedSensor(ReolinkEntity, BinarySensorEntity):
                         self._event_state = value.get('alarm_state', 0) == 1
                         self._available = value.get('support', 0) == 1
 
-                    self.async_schedule_update_ha_state()
+                    if self.enabled:
+                        self.async_schedule_update_ha_state()
                     object_found = True
                     break
 
