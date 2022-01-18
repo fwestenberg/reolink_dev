@@ -23,8 +23,10 @@ Copy and Paste all logs after you have clicked on "LOAD FULL HOMEASSISTANT LOG" 
 
 ### Motion sensors remains unavailable or never trigger
 
-- If you are using a NVR, you must first enable ONVIF protocol via a menu which is only available via
+- ONVIF protocol MUST BE ENABLED:
+  - If you are using a NVR, you must first enable ONVIF protocol via a menu which is only available via
 a HDMI screen connected to the NVR, without this then HA cannot be aware of a motion detection event.
+  - from a camera, starting version 3.1.7XX ONVIF is disabled by default and must be enabled from Networks > Advanced > Ports menu
 - HomeAssistant must have an internal URL configured and:
   - IT MUST NOT USE HTTPS : Reolink doesn't support HTTPS based Webhooks.
   - URL also should not be using a DNS name but an ip address instead unless you have a solid DNS setup 
