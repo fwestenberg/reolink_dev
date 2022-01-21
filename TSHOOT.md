@@ -21,7 +21,7 @@ Copy and Paste all logs after you have clicked on "LOAD FULL HOMEASSISTANT LOG" 
 
 ## Frequent issues
 
-### Motion sensors remains unavailable or never trigger
+### Motion sensors remains unavailable or never trigger or lags/misses events
 
 - ONVIF protocol MUST BE ENABLED:
   - If you are using a NVR, you must first enable ONVIF protocol via a menu which is only available via
@@ -31,6 +31,7 @@ a HDMI screen connected to the NVR, without this then HA cannot be aware of a mo
   - IT MUST NOT USE HTTPS : Reolink doesn't support HTTPS based Webhooks.
   - URL also should not be using a DNS name but an ip address instead unless you have a solid DNS setup 
   your camera is probably not able to resolve your address
+- You can re-configure default timer called "Motion states update fallback delay (seconds)" for a specific camera, it defaults to 30 seconds but you can go down to 2-5 seconds. Because it will hammer your camera's API every X seconds, it may have CPU/RAM/stability impacts on your camera.
   
 ### Push notification toggle has no effect in Android/iPhone app which doesn't change state
 
