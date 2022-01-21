@@ -86,7 +86,9 @@ class MotionSensor(ReolinkEntity, BinarySensorEntity):
     @property
     def available(self):
         """Return True if entity is available."""
-        return self._available
+        if self._base.motion_states_update_fallback_delay is None or self._base.motion_states_update_fallback_delay <= 0:
+            return self._available
+        return self._base.api.session_active
 
     @property
     def device_class(self):
@@ -245,13 +247,14 @@ class ObjectDetectedSensor(ReolinkEntity, BinarySensorEntity):
     def is_on(self):
         """Return the state of the sensor."""
         self._state = self._event_state
-
         return self._state
 
     @property
     def available(self):
         """Return True if entity is available."""
-        return self._available
+        if self._base.motion_states_update_fallback_delay is None or self._base.motion_states_update_fallback_delay <= 0:
+            return self._available
+        return self._base.api.ai_state and self._base.api.session_active
 
     @property
     def device_class(self):
