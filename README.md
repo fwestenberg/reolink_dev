@@ -106,7 +106,7 @@ This integration creates a camera entity, providing a live-stream configurable f
 | Parameter               | Description                                                                                                 |
 | :-------------------    | :---------------------------------------------------------------------------------------------------------- |
 | Stream                  | Switch between Sub or Main camera stream.                                                                   |
-| Stream format           | Switch between h264 and h256 stream formats.                                                                |
+| Stream format           | Switch between h264 and h265 stream formats.                                                                |
 | Protocol                | Switch between the RTMP or RTSP streaming protocol.                                                         |
 | Channel                 | When using a single camera, choose stream 0. When using a NVR, switch between the different camera streams. |
 
