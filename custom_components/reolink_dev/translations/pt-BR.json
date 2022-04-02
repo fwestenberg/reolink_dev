@@ -1,0 +1,56 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Esta câmera já está configurada"
+        },
+        "error": {
+            "cannot_connect": "Falha ao conectar com a câmera",
+            "invalid_auth": "nome de usuário ou senha inválidos",
+            "unknown": "Erro inesperado"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "host": "Host",
+                    "port": "Porta",
+                    "use_https": "Ativar HTTPS",
+                    "username": "Nome de usuário",
+                    "password": "Senha"
+                }
+            },
+            "nvr": {
+                "data": {
+                    "channel": "Canal"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "protocol": "Protocolo",
+                    "stream": "Stream",
+                    "timeout": "Tempo limite (segundos)",
+                    "motion_states_update_fallback_delay": "Os estados de movimento atualizam o delay de saida (segundos, 0 ou menos para desabilitar): a assinatura de eventos do Reolink nem sempre é confiável, isso ajudará a evitar perdas de eventos",
+                    "motion_off_delay": "Delay de desligamento do sensor de movimento (segundos)",
+                    "playback_months": "Intervalo de reprodução (meses)",
+                    "playback_thumbnails": "Crie miniaturas para itens de reprodução",
+                    "playback_thumbnail_path": "Caminho de miniatura personalizado"
+                }
+            }
+        }
+    },
+    "device_automation": {
+        "trigger_type": {
+            "new_vod": "Novo vídeo em movimento detectado"
+        },
+        "action_type": {
+            "capture_vod_thumbnail": "Salvar instantâneo como miniatura de movimento"
+        },
+        "condition_type": {
+            "vod_no_thumbnail": "O último vídeo em movimento não tem miniatura",
+            "vod_has_thumbnail": "O último vídeo em movimento tem uma miniatura"
+        }
+    }
+}
