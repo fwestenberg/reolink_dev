@@ -1,0 +1,56 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Telecamera già configurata"
+        },
+        "error": {
+            "cannot_connect": "Connessione fallita",
+            "invalid_auth": "Username o password errati",
+            "unknown": "Errore inaspettato"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "host": "Host",
+                    "port": "Porta",
+                    "use_https": "Abilita HTTPS",
+                    "username": "Username",
+                    "password": "Password"
+                }
+            },
+            "nvr": {
+                "data": {
+                    "channel": "Canale"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "protocol": "Protocollo",
+                    "stream": "Stream",
+                    "timeout": "Timeout (secondi)",
+                    "motion_states_update_fallback_delay": "Aggiornamento stato allarmi (secondi, 0 o meno per disabilitare): la sottoscrizione agli eventi di Reolink non è sempre affidabile, questo aiuterà a evitare eventi mancati",
+                    "motion_off_delay": "Ritardo chiusura allarme (secondi)",
+                    "playback_months": "Range playback range (mesi)",
+                    "playback_thumbnails": "Crea anteprima per i playback",
+                    "playback_thumbnail_path": "Cartella personalizzata anteprime"
+                }
+            }
+        }
+    },
+    "device_automation": {
+        "trigger_type": {
+            "new_vod": "Nuovo video/allarme rilevato"
+        },
+        "action_type": {
+            "capture_vod_thumbnail": "Salva snaphots come miniatura del video/allarme"
+        },
+        "condition_type": {
+            "vod_no_thumbnail": "L'ultimo video/allarme non ha anteprima",
+            "vod_has_thumbnail": "L'ultimo video/allarme ha l'anteprima"
+        }
+    }
+}
