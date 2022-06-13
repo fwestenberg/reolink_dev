@@ -28,7 +28,7 @@ $ mv reolink_dev-master/custom_components/reolink_dev <home-assistant-install-di
 ```
 
 
-### HACS install
+### HACS install ([How to install HACS](https://hacs.xyz/docs/setup/prerequisites))
 
   1. Click on HACS in the Home Assistant menu
   2. Click on `Integrations`
