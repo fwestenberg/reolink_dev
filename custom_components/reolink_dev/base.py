@@ -132,6 +132,7 @@ class ReolinkBase:
         self.motion_detection_state = True
         self.object_person_detection_state = True
         self.object_vehicle_detection_state = True
+        self.object_pet_detection_state = True
 
         if CONF_MOTION_OFF_DELAY not in options:
             self.motion_off_delay = DEFAULT_MOTION_OFF_DELAY
