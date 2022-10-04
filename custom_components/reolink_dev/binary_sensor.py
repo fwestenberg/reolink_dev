@@ -30,7 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry, async_add_devices
                       format(base.name, base.api.model))
         base.sensor_person_detection = ObjectDetectedSensor(hass, config_entry, "person")
         base.sensor_vehicle_detection = ObjectDetectedSensor(hass, config_entry, "vehicle")
-        base.sensor_pet_detection = ObjectDetectedSensor(hass, config_entry, "pet")
+        base.sensor_pet_detection = ObjectDetectedSensor(hass, config_entry, "dog_cat")
 
         new_sensors.append(base.sensor_person_detection)
         new_sensors.append(base.sensor_vehicle_detection)
@@ -233,7 +233,7 @@ class ObjectDetectedSensor(ReolinkEntity, BinarySensorEntity):
     def icon(self):
         """Icon of the sensor."""
 
-        if self._object_type == "pet":
+        if self._object_type == "dog_cat":
             if self._state:
                 return "mdi:dog-side"
             else:
