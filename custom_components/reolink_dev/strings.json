@@ -32,11 +32,12 @@
           "protocol": "Protocol",
           "stream": "Stream",
           "timeout": "Timeout",
+          "smtp_port": "SMTP port for AI detection events (0 to disable)",
           "motion_states_update_fallback_delay": "Motion states update fallback delay (seconds, 0 or less to disable)",
           "motion_off_delay": "Motion sensor off delay (seconds)",
           "playback_months": "Playback range (months)",
           "playback_thumbnail_path": "Custom thumbnail path",
-            "stream_format": "Stream format"
+          "stream_format": "Stream format"
         }
       }
     }

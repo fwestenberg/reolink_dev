@@ -110,9 +110,9 @@ This integration creates a camera entity, providing a live-stream configurable f
 | Protocol                | Switch between the RTMP or RTSP streaming protocol.                                                         |
 | Channel                 | When using a single camera, choose stream 0. When using a NVR, switch between the different camera streams. |
 
-## Binary Sensor
+## Binary Sensors
 
-When the camera supports motion detection events, a binary sensor is created for real-time motion detection. The time to switch motion detection off can be configured via the options menu, located at the integrations page. Please notice: for using the motion detection, your Homa Assistant should be reachable (within you local network) over http (not https).
+When the camera supports motion detection events, a binary sensor is created for real-time motion detection. The time to switch motion detection off can be configured via the options menu, located at the integrations page. Please notice: for using the motion detection, your Homa Assistant should be reachable (within your local network) over http (not https).
 
 | Parameter               | Description                                                                                                 |
 | :-------------------    | :---------------------------------------------------------------------------------------------------------- |
@@ -120,7 +120,22 @@ When the camera supports motion detection events, a binary sensor is created for
 
 When the camera supports AI objects detection, a binary sensor is created for each type of object (person, vehicle, pet)
 
-## Switch
+The cameras only support webhooks for motion start/stop, and not any of the AI detections (person/vehicle/pet).
+This may change in future firmware, but AI detections must be polled for now.
+Optionally configure camera to send an email via SMTP on AI detection, and receive it in this Home Assistant plugin.
+This allows event based start of AI detection start, but not stop.
+The AI detection will be cleared in the next poll update.
+Camera should be configured to email on person/vehicle detection (not motion), use Home Assistant's IP address, disable SSL/TLS, and select an arbitrary SMTP port.
+The SMTP port should be unique for each integration.
+Text, Text with Picture, and Text with Video will all work for email content, but there may be unnecessary delay with the picture or video options.
+Other email fields in the camera configuration don't matter.
+Tested on individual cameras, but not NVRs.
+
+| Parameter               | Description                                                                                                 |
+| :-------------------    | :---------------------------------------------------------------------------------------------------------- |
+| SMTP port               | Optional port to listen for email event for AI detections. Default is 0 (disable).                          |
+
+## Switches
 
 Depending on the camera, the following switches are created:
 
