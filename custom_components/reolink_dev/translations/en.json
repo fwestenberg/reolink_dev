@@ -33,6 +33,7 @@
                     "stream": "Stream",
                     "timeout": "Timeout (seconds)",
                     "smtp_port": "SMTP port for AI detection events (0 to disable)",
+                    "onvif_subscription_disabled": "Disable ONVIF event subscription (use polling instead)",
                     "motion_states_update_fallback_delay": "Motion states update fallback delay (seconds, 0 or less to disable): Reolink's event subscription is not always reliable, this will help to avoid event misses",
                     "motion_off_delay": "Motion sensor off delay (seconds)",
                     "playback_months": "Playback range (months)",
