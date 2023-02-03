@@ -1,0 +1,58 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Ця камера вже налаштована"
+        },
+        "error": {
+            "cannot_connect": "Не вдалося підключитися до камери",
+            "invalid_auth": "Неправильне ім'я користувача або пароль",
+            "unknown": "Неочікувана помилка"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "host": "Хост",
+                    "port": "Порт",
+                    "use_https": "Увімкнути HTTPS",
+                    "username": "Ім'я користувача",
+                    "password": "Пароль"
+                }
+            },
+            "nvr": {
+                "data": {
+                    "channel": "Канал"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "data": {
+                    "protocol": "Протокол",
+                    "stream": "Потік",
+                    "timeout": "Час очікування (секунди)",
+                    "smtp_port": "Порт SMTP для виявлення подій  AI (0 для вимкнення)",
+                    "onvif_subscription_disabled": "Вимкнути підписку на події ONVIF (замість цього використовувати опитування)",
+                    "motion_states_update_fallback_delay": "Затримка оновлення станів руху (секунд, 0 або менше для вимкнення): підписка на події Reolink не завжди надійна, це допоможе уникнути пропусків подій",
+                    "motion_off_delay": "Затримка вимкнення датчика руху (секунди)",
+                    "playback_months": "Діапазон відтворення (місяці)",
+                    "playback_thumbnails": "Створення мініатюр для елементів відтворення",
+                    "playback_thumbnail_path": "Custom thumbnail path"
+                }
+            }
+        }
+    },
+    "device_automation": {
+        "trigger_type": {
+            "new_vod": "New motion video detected"
+        },
+        "action_type": {
+            "capture_vod_thumbnail": "Save snapshot as motion thumbnail"
+        },
+        "condition_type": {
+            "vod_no_thumbnail": "Latest motion video has no thumbnail",
+            "vod_has_thumbnail": "Latest motion video has a thumbnail"
+        }
+    }
+}
